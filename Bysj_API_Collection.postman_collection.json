@@ -1,0 +1,668 @@
+{
+	"info": {
+		"_postman_id": "bysj-api-collection",
+		"name": "Bysj API Collection",
+		"description": "实时多人协同编辑系统 API 测试集合",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "用户相关",
+			"item": [
+				{
+					"name": "用户注册",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"nickname\": \"测试用户\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "register"]
+						}
+					}
+				},
+				{
+					"name": "用户登录",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.token) {",
+									"        pm.environment.set('token', jsonData.data.token);",
+									"        pm.environment.set('user_id', jsonData.data.userId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "login"]
+						}
+					}
+				},
+				{
+					"name": "获取用户信息",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "修改密码",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "oldPassword",
+									"value": "password123",
+									"type": "text"
+								},
+								{
+									"key": "newPassword",
+									"value": "newpassword123",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "user", "change-password"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "文档相关",
+			"item": [
+				{
+					"name": "创建文档",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.id) {",
+									"        pm.environment.set('document_id', jsonData.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"我的第一个文档\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/documents",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents"]
+						}
+					}
+				},
+				{
+					"name": "获取文档",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/documents/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "获取用户的所有文档",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/documents/user/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents", "user", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "删除文档",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/documents/{{document_id}}?userId={{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents", "{{document_id}}"],
+							"query": [
+								{
+									"key": "userId",
+									"value": "{{user_id}}"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "评论相关",
+			"item": [
+				{
+					"name": "创建评论",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.id) {",
+									"        pm.environment.set('comment_id', jsonData.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"documentId\": {{document_id}},\n  \"userId\": {{user_id}},\n  \"content\": \"这是一条评论\",\n  \"position\": 0,\n  \"parentId\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/comments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments"]
+						}
+					}
+				},
+				{
+					"name": "获取文档的所有评论",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/comments/document/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "document", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "获取根评论",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/comments/document/{{document_id}}/root",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "document", "{{document_id}}", "root"]
+						}
+					}
+				},
+				{
+					"name": "获取回复",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}/replies",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}", "replies"]
+						}
+					}
+				},
+				{
+					"name": "更新评论",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"更新后的评论内容\",\n  \"isResolved\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}"]
+						}
+					}
+				},
+				{
+					"name": "删除评论",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/comments/{{comment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "comments", "{{comment_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "权限相关",
+			"item": [
+				{
+					"name": "添加文档权限",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"documentId\": {{document_id}},\n  \"userId\": {{user_id}},\n  \"permissionType\": \"READ\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/permissions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "permissions"]
+						}
+					}
+				},
+				{
+					"name": "更新文档权限",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"documentId\": {{document_id}},\n  \"userId\": {{user_id}},\n  \"permissionType\": \"WRITE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/permissions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "permissions"]
+						}
+					}
+				},
+				{
+					"name": "删除文档权限",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/permissions?documentId={{document_id}}&userId={{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "permissions"],
+							"query": [
+								{
+									"key": "documentId",
+									"value": "{{document_id}}"
+								},
+								{
+									"key": "userId",
+									"value": "{{user_id}}"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "获取文档的所有权限",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/permissions/document/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "permissions", "document", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "检查用户权限",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/permissions/check?documentId={{document_id}}&userId={{user_id}}&permissionType=READ",
+							"host": ["{{base_url}}"],
+							"path": ["api", "permissions", "check"],
+							"query": [
+								{
+									"key": "documentId",
+									"value": "{{document_id}}"
+								},
+								{
+									"key": "userId",
+									"value": "{{user_id}}"
+								},
+								{
+									"key": "permissionType",
+									"value": "READ"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "版本管理",
+			"item": [
+				{
+					"name": "获取文档的所有版本",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/versions/document/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "versions", "document", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "获取指定版本的快照",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/versions/document/{{document_id}}/version/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "versions", "document", "{{document_id}}", "version", "1"]
+						}
+					}
+				},
+				{
+					"name": "创建版本快照",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/versions/document/{{document_id}}/snapshot?version=1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "versions", "document", "{{document_id}}", "snapshot"],
+							"query": [
+								{
+									"key": "version",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "回滚到指定版本",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/versions/document/{{document_id}}/rollback?targetVersion=1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "versions", "document", "{{document_id}}", "rollback"],
+							"query": [
+								{
+									"key": "targetVersion",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "文档导出",
+			"item": [
+				{
+					"name": "导出为PDF",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/export/pdf/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "export", "pdf", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "导出为Word",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/export/word/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "export", "word", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "导出为Markdown",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/export/markdown/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "export", "markdown", "{{document_id}}"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "document_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "comment_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
