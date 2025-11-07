@@ -41,5 +41,53 @@ public class RedisKeyConstant {
     public static String buildUserCursorKey(Long documentId, Long userId) {
         return USER_CURSOR_KEY + documentId + ":" + userId;
     }
+
+    /**
+     * 离线操作队列key前缀
+     */
+    public static final String OFFLINE_OPERATIONS_KEY = "offline_operations:";
+
+    /**
+     * 文档操作锁key前缀
+     */
+    public static final String DOCUMENT_LOCK_KEY = "document_lock:";
+
+    /**
+     * 文档操作序列号key前缀
+     */
+    public static final String DOCUMENT_SEQUENCE_KEY = "document_sequence:";
+
+    /**
+     * 用户离线状态key前缀
+     */
+    public static final String USER_OFFLINE_KEY = "user_offline:";
+
+    /**
+     * 构建离线操作队列key
+     */
+    public static String buildOfflineOperationsKey(Long documentId, Long userId) {
+        return OFFLINE_OPERATIONS_KEY + documentId + ":" + userId;
+    }
+
+    /**
+     * 构建文档锁key
+     */
+    public static String buildDocumentLockKey(Long documentId) {
+        return DOCUMENT_LOCK_KEY + documentId;
+    }
+
+    /**
+     * 构建文档操作序列号key
+     */
+    public static String buildDocumentSequenceKey(Long documentId) {
+        return DOCUMENT_SEQUENCE_KEY + documentId;
+    }
+
+    /**
+     * 构建用户离线状态key
+     */
+    public static String buildUserOfflineKey(Long documentId, Long userId) {
+        return USER_OFFLINE_KEY + documentId + ":" + userId;
+    }
 }
 

@@ -202,6 +202,81 @@
 					}
 				},
 				{
+					"name": "更新文档内容",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"这是更新后的文档内容\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/documents/{{document_id}}/content",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents", "{{document_id}}", "content"]
+						}
+					}
+				},
+				{
+					"name": "应用操作到文档（插入文本）",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"operation\": {\n    \"type\": \"INSERT\",\n    \"data\": \"新插入的文本\",\n    \"position\": 0,\n    \"length\": 6\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/documents/{{document_id}}/operation",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents", "{{document_id}}", "operation"]
+						}
+					}
+				},
+				{
+					"name": "应用操作到文档（删除文本）",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"operation\": {\n    \"type\": \"DELETE\",\n    \"data\": null,\n    \"position\": 0,\n    \"length\": 5\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/documents/{{document_id}}/operation",
+							"host": ["{{base_url}}"],
+							"path": ["api", "documents", "{{document_id}}", "operation"]
+						}
+					}
+				},
+				{
 					"name": "删除文档",
 					"request": {
 						"method": "DELETE",
@@ -631,6 +706,87 @@
 							"raw": "{{base_url}}/api/export/markdown/{{document_id}}",
 							"host": ["{{base_url}}"],
 							"path": ["api", "export", "markdown", "{{document_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "离线同步",
+			"item": [
+				{
+					"name": "保存离线操作",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"documentId\": {{document_id}},\n  \"operation\": {\n    \"type\": \"insert\",\n    \"data\": \"Hello World\",\n    \"position\": 0,\n    \"length\": 11,\n    \"attributes\": null\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/offline/operations",
+							"host": ["{{base_url}}"],
+							"path": ["api", "offline", "operations"]
+						}
+					}
+				},
+				{
+					"name": "获取离线操作列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/offline/operations/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "offline", "operations", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "同步离线操作",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/offline/sync/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "offline", "sync", "{{document_id}}"]
+						}
+					}
+				},
+				{
+					"name": "检查用户离线状态",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/offline/status/{{document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "offline", "status", "{{document_id}}"]
 						}
 					}
 				}

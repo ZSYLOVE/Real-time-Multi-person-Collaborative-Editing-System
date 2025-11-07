@@ -72,8 +72,25 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     public Document getDocumentById(Long documentId) {
         // 先从缓存获取
-        Document document = (Document) redisTemplate.opsForValue()
+        Object cached = redisTemplate.opsForValue()
                 .get(RedisKeyConstant.buildDocumentCacheKey(documentId));
+        
+        Document document = null;
+        if (cached != null) {
+            // 如果缓存的是 LinkedHashMap（旧数据），需要手动转换
+            if (cached instanceof Document) {
+                document = (Document) cached;
+            } else if (cached instanceof java.util.Map) {
+                // 手动转换 LinkedHashMap 到 Document
+                try {
+                    document = objectMapper.convertValue(cached, Document.class);
+                } catch (Exception e) {
+                    // 转换失败，清除缓存，从数据库重新加载
+                    redisTemplate.delete(RedisKeyConstant.buildDocumentCacheKey(documentId));
+                    document = null;
+                }
+            }
+        }
         
         if (document == null) {
             document = documentMapper.selectById(documentId);

@@ -79,6 +79,11 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+        <!-- Jackson Java 8时间类型支持 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
         <!-- JWT认证 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

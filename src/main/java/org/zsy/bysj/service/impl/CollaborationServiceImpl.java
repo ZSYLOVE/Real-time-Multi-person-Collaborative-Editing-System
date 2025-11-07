@@ -30,33 +30,67 @@ public class CollaborationServiceImpl implements CollaborationService {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
+    @Autowired
+    private org.zsy.bysj.service.DistributedLockService distributedLockService;
+
+    @Autowired
+    private org.zsy.bysj.service.OfflineSyncService offlineSyncService;
+
     @Override
     public void handleOperation(WebSocketMessage message) {
         Long documentId = message.getDocumentId();
         Long userId = message.getUserId();
         
-        // 解析操作
-        Map<String, Object> dataMap = (Map<String, Object>) message.getData();
-        OperationDTO opDTO = parseOperationDTO(dataMap);
-        Operation operation = convertToOperation(opDTO);
+        // 检查用户是否在线，如果离线则保存到离线队列
+        if (offlineSyncService.isUserOffline(documentId, userId)) {
+            Map<String, Object> dataMap = (Map<String, Object>) message.getData();
+            OperationDTO opDTO = parseOperationDTO(dataMap);
+            offlineSyncService.saveOfflineOperation(documentId, userId, opDTO);
+            return;
+        }
         
-        // 应用操作到文档
-        Document document = documentService.applyOperation(documentId, operation, userId);
+        // 尝试获取分布式锁（最多等待100ms）
+        boolean lockAcquired = distributedLockService.tryDocumentLock(documentId, userId, 100, java.util.concurrent.TimeUnit.MILLISECONDS);
+        if (!lockAcquired) {
+            // 获取锁失败，保存为离线操作
+            Map<String, Object> dataMap = (Map<String, Object>) message.getData();
+            OperationDTO opDTO = parseOperationDTO(dataMap);
+            offlineSyncService.saveOfflineOperation(documentId, userId, opDTO);
+            return;
+        }
         
-        // 构建响应消息
-        WebSocketMessage response = new WebSocketMessage();
-        response.setType("OPERATION_APPLIED");
-        response.setDocumentId(documentId);
-        response.setUserId(userId);
-        response.setTimestamp(System.currentTimeMillis());
-        
-        Map<String, Object> responseData = new HashMap<>();
-        responseData.put("version", document.getVersion());
-        responseData.put("content", document.getContent());
-        response.setData(responseData);
-        
-        // 广播给文档的所有用户（除了发送者）
-        broadcastToDocument(documentId, response, userId);
+        try {
+            // 解析操作
+            Map<String, Object> dataMap = (Map<String, Object>) message.getData();
+            OperationDTO opDTO = parseOperationDTO(dataMap);
+            Operation operation = convertToOperation(opDTO);
+            
+            // 获取操作序列号
+            Long sequence = distributedLockService.getNextSequence(documentId);
+            opDTO.setVersion(sequence.intValue());
+            
+            // 应用操作到文档
+            Document document = documentService.applyOperation(documentId, operation, userId);
+            
+            // 构建响应消息
+            WebSocketMessage response = new WebSocketMessage();
+            response.setType("OPERATION_APPLIED");
+            response.setDocumentId(documentId);
+            response.setUserId(userId);
+            response.setTimestamp(System.currentTimeMillis());
+            
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("version", document.getVersion());
+            responseData.put("sequence", sequence);
+            responseData.put("content", document.getContent());
+            response.setData(responseData);
+            
+            // 广播给文档的所有用户（除了发送者）
+            broadcastToDocument(documentId, response, userId);
+        } finally {
+            // 释放锁
+            distributedLockService.releaseDocumentLock(documentId, userId);
+        }
     }
 
     @Override
@@ -110,6 +144,28 @@ public class CollaborationServiceImpl implements CollaborationService {
         redisTemplate.opsForSet().add(key, userId);
         redisTemplate.expire(key, 30, TimeUnit.MINUTES);
         
+        // 标记用户为在线
+        offlineSyncService.markUserOnline(documentId, userId);
+        
+        // 尝试同步离线操作
+        try {
+            List<org.zsy.bysj.dto.OperationDTO> syncedOps = offlineSyncService.syncOfflineOperations(documentId, userId);
+            if (!syncedOps.isEmpty()) {
+                // 通知客户端离线操作已同步
+                WebSocketMessage syncMessage = new WebSocketMessage();
+                syncMessage.setType("OFFLINE_SYNC_COMPLETE");
+                syncMessage.setDocumentId(documentId);
+                syncMessage.setUserId(userId);
+                syncMessage.setTimestamp(System.currentTimeMillis());
+                Map<String, Object> syncData = new HashMap<>();
+                syncData.put("syncedCount", syncedOps.size());
+                syncMessage.setData(syncData);
+                broadcastToDocument(documentId, syncMessage, null);
+            }
+        } catch (Exception e) {
+            System.err.println("同步离线操作失败: " + e.getMessage());
+        }
+        
         // 通知其他用户
         WebSocketMessage message = new WebSocketMessage();
         message.setType("USER_JOINED");
@@ -128,6 +184,12 @@ public class CollaborationServiceImpl implements CollaborationService {
         // 清除光标位置
         String cursorKey = RedisKeyConstant.buildUserCursorKey(documentId, userId);
         redisTemplate.delete(cursorKey);
+        
+        // 标记用户为离线
+        offlineSyncService.markUserOffline(documentId, userId);
+        
+        // 释放锁（如果持有）
+        distributedLockService.releaseDocumentLock(documentId, userId);
         
         // 通知其他用户
         WebSocketMessage message = new WebSocketMessage();
@@ -153,7 +215,7 @@ public class CollaborationServiceImpl implements CollaborationService {
     }
 
     /**
-     * 解析操作DTO
+     * 解析操作DTO（支持富文本）
      */
     private OperationDTO parseOperationDTO(Map<String, Object> dataMap) {
         OperationDTO opDTO = new OperationDTO();
@@ -162,6 +224,19 @@ public class CollaborationServiceImpl implements CollaborationService {
         opDTO.setPosition(((Number) dataMap.get("position")).intValue());
         opDTO.setLength(dataMap.get("length") != null ? 
                 ((Number) dataMap.get("length")).intValue() : 0);
+        
+        // 富文本属性
+        if (dataMap.get("attributes") != null) {
+            opDTO.setAttributes((Map<String, Object>) dataMap.get("attributes"));
+        }
+        if (dataMap.get("formatType") != null) {
+            opDTO.setFormatType((String) dataMap.get("formatType"));
+        }
+        if (dataMap.get("formatValue") != null) {
+            opDTO.setFormatValue(dataMap.get("formatValue"));
+        }
+        
+        opDTO.setTimestamp(System.currentTimeMillis());
         return opDTO;
     }
 

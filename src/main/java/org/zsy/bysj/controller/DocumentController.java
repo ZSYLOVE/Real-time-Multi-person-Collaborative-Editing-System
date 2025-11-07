@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import org.zsy.bysj.annotation.RequirePermission;
 import org.zsy.bysj.dto.Result;
 import org.zsy.bysj.model.Document;
+import org.zsy.bysj.algorithm.Operation;
 import org.zsy.bysj.service.DocumentService;
 import org.zsy.bysj.util.RequestUtil;
 
@@ -64,6 +65,77 @@ public class DocumentController {
     public ResponseEntity<Result<List<Document>>> getUserDocuments(@PathVariable Long userId) {
         List<Document> documents = documentService.getUserDocuments(userId);
         return ResponseEntity.ok(Result.success(documents));
+    }
+
+    /**
+     * 更新文档内容（直接更新）
+     */
+    @RequirePermission("WRITE")
+    @PutMapping("/{id}/content")
+    public ResponseEntity<Result<Document>> updateDocumentContent(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
+        try {
+            Long userId = RequestUtil.getUserId(httpRequest);
+            if (userId == null) {
+                return ResponseEntity.badRequest().body(Result.error("未认证"));
+            }
+            
+            String content = request.get("content").toString();
+            Document document = documentService.getDocumentById(id);
+            if (document == null) {
+                return ResponseEntity.badRequest().body(Result.error("文档不存在"));
+            }
+            
+            documentService.updateDocumentContent(id, content, document.getVersion());
+            Document updatedDocument = documentService.getDocumentById(id);
+            return ResponseEntity.ok(Result.success("文档内容更新成功", updatedDocument));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Result.error(e.getMessage()));
+        }
+    }
+
+    /**
+     * 应用操作到文档（使用OT算法）
+     */
+    @RequirePermission("WRITE")
+    @PostMapping("/{id}/operation")
+    public ResponseEntity<Result<Document>> applyOperation(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
+        try {
+            Long userId = RequestUtil.getUserId(httpRequest);
+            if (userId == null) {
+                return ResponseEntity.badRequest().body(Result.error("未认证"));
+            }
+            
+            // 解析操作
+            @SuppressWarnings("unchecked")
+            Map<String, Object> opMap = (Map<String, Object>) request.get("operation");
+            String type = opMap.get("type").toString();
+            String data = opMap.get("data") != null ? opMap.get("data").toString() : null;
+            Integer position = ((Number) opMap.get("position")).intValue();
+            Integer length = opMap.get("length") != null ? 
+                ((Number) opMap.get("length")).intValue() : 0;
+            
+            Operation operation;
+            if ("INSERT".equals(type)) {
+                operation = Operation.insert(data, position);
+            } else if ("DELETE".equals(type)) {
+                operation = Operation.delete(position, length);
+            } else if ("RETAIN".equals(type)) {
+                operation = Operation.retain(position, length);
+            } else {
+                return ResponseEntity.badRequest().body(Result.error("不支持的操作类型"));
+            }
+            
+            Document document = documentService.applyOperation(id, operation, userId);
+            return ResponseEntity.ok(Result.success("操作应用成功", document));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Result.error(e.getMessage()));
+        }
     }
 
     /**
