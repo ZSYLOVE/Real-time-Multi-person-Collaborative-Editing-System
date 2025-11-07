@@ -1,5 +1,6 @@
 package org.zsy.bysj.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -9,7 +10,9 @@ import org.zsy.bysj.dto.OperationDTO;
 import org.zsy.bysj.dto.WebSocketMessage;
 import org.zsy.bysj.model.Document;
 import org.zsy.bysj.service.CollaborationService;
+import org.zsy.bysj.service.DistributedLockService;
 import org.zsy.bysj.service.DocumentService;
+import org.zsy.bysj.service.OfflineSyncService;
 import org.zsy.bysj.constant.RedisKeyConstant;
 
 import java.util.*;
@@ -36,6 +39,9 @@ public class CollaborationServiceImpl implements CollaborationService {
     @Autowired
     private org.zsy.bysj.service.OfflineSyncService offlineSyncService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
     public void handleOperation(WebSocketMessage message) {
         Long documentId = message.getDocumentId();
@@ -52,15 +58,29 @@ public class CollaborationServiceImpl implements CollaborationService {
             return;
         }
         
-        // 尝试获取分布式锁（最多等待100ms）
-        boolean lockAcquired = distributedLockService.tryDocumentLock(documentId, userId, 100, java.util.concurrent.TimeUnit.MILLISECONDS);
+        // 尝试获取分布式锁，支持队列等待（最多等待2秒）
+        boolean lockAcquired = distributedLockService.tryDocumentLockWithQueue(documentId, userId, 2000);
         System.out.println("尝试获取分布式锁: " + (lockAcquired ? "成功" : "失败"));
         if (!lockAcquired) {
-            // 获取锁失败，保存为离线操作
-            System.out.println("锁获取失败，保存为离线操作");
-            Map<String, Object> dataMap = (Map<String, Object>) message.getData();
-            OperationDTO opDTO = parseOperationDTO(dataMap);
-            offlineSyncService.saveOfflineOperation(documentId, userId, opDTO);
+            // 获取锁失败，将操作加入锁队列等待
+            System.out.println("锁获取失败，将操作加入锁队列等待");
+            try {
+                // 将操作数据序列化为JSON字符串存储在队列中
+                Map<String, Object> operationData = new HashMap<>();
+                operationData.put("documentId", documentId);
+                operationData.put("userId", userId);
+                operationData.put("data", message.getData());
+                operationData.put("timestamp", message.getTimestamp());
+
+                String operationJson = objectMapper.writeValueAsString(operationData);
+                distributedLockService.queueOperation(documentId, userId, operationJson);
+            } catch (Exception e) {
+                System.err.println("序列化操作失败: " + e.getMessage());
+                // 如果序列化失败，回退到离线操作
+                Map<String, Object> dataMap = (Map<String, Object>) message.getData();
+                OperationDTO opDTO = parseOperationDTO(dataMap);
+                offlineSyncService.saveOfflineOperation(documentId, userId, opDTO);
+            }
             return;
         }
         
@@ -105,9 +125,36 @@ public class CollaborationServiceImpl implements CollaborationService {
             System.out.println("操作处理过程中发生错误: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            // 释放锁
-            distributedLockService.releaseDocumentLock(documentId, userId);
-            System.out.println("释放分布式锁");
+            // 释放锁并处理队列中的下一个操作
+            distributedLockService.releaseDocumentLockAndProcessQueue(documentId, userId, new DistributedLockService.OperationHandler() {
+                @Override
+                public void handleOperation(String operationData) {
+                    try {
+                        // 反序列化操作数据
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> operationMap = objectMapper.readValue(operationData, Map.class);
+                        Long queuedUserId = Long.valueOf(operationMap.get("userId").toString());
+                        Long queuedDocumentId = Long.valueOf(operationMap.get("documentId").toString());
+
+                        System.out.println("处理队列中的操作: userId=" + queuedUserId + ", documentId=" + queuedDocumentId);
+
+                        // 构造WebSocketMessage并递归处理
+                        WebSocketMessage queuedMessage = new WebSocketMessage();
+                        queuedMessage.setType("OPERATION");
+                        queuedMessage.setDocumentId(queuedDocumentId);
+                        queuedMessage.setUserId(queuedUserId);
+                        queuedMessage.setData(operationMap.get("data"));
+                        queuedMessage.setTimestamp(Long.valueOf(operationMap.get("timestamp").toString()));
+
+                        // 递归处理队列中的操作（直接调用，不通过OperationHandler）
+                        CollaborationServiceImpl.this.handleOperation(queuedMessage);
+                    } catch (Exception e) {
+                        System.err.println("处理队列操作失败: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+            });
+            System.out.println("释放分布式锁并处理队列");
         }
     }
 
@@ -206,8 +253,35 @@ public class CollaborationServiceImpl implements CollaborationService {
         // 标记用户为离线
         offlineSyncService.markUserOffline(documentId, userId);
         
-        // 释放锁（如果持有）
-        distributedLockService.releaseDocumentLock(documentId, userId);
+        // 释放锁并处理队列中的下一个操作（如果持有）
+        distributedLockService.releaseDocumentLockAndProcessQueue(documentId, userId, new DistributedLockService.OperationHandler() {
+            @Override
+            public void handleOperation(String operationData) {
+                try {
+                    // 反序列化操作数据
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> operationMap = objectMapper.readValue(operationData, Map.class);
+                    Long queuedUserId = Long.valueOf(operationMap.get("userId").toString());
+                    Long queuedDocumentId = Long.valueOf(operationMap.get("documentId").toString());
+
+                    System.out.println("用户离开时处理队列中的操作: userId=" + queuedUserId + ", documentId=" + queuedDocumentId);
+
+                    // 构造WebSocketMessage并递归处理
+                    WebSocketMessage queuedMessage = new WebSocketMessage();
+                    queuedMessage.setType("OPERATION");
+                    queuedMessage.setDocumentId(queuedDocumentId);
+                    queuedMessage.setUserId(queuedUserId);
+                    queuedMessage.setData(operationMap.get("data"));
+                    queuedMessage.setTimestamp(Long.valueOf(operationMap.get("timestamp").toString()));
+
+                    // 递归处理队列中的操作（直接调用，不通过OperationHandler）
+                    CollaborationServiceImpl.this.handleOperation(queuedMessage);
+                } catch (Exception e) {
+                    System.err.println("用户离开时处理队列操作失败: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        });
         
         // 通知其他用户
         WebSocketMessage message = new WebSocketMessage();

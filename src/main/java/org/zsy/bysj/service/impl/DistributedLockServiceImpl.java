@@ -137,5 +137,118 @@ public class DistributedLockServiceImpl implements DistributedLockService {
         Object value = redisTemplate.opsForValue().get(key);
         return value != null ? Long.valueOf(value.toString()) : 0L;
     }
+
+    @Override
+    public void queueOperation(Long documentId, Long userId, String operation) {
+        String queueKey = RedisKeyConstant.buildDocumentLockQueueKey(documentId);
+        String queueItem = userId + ":" + System.currentTimeMillis() + ":" + operation;
+        redisTemplate.opsForList().rightPush(queueKey, queueItem);
+        // 设置队列过期时间为1小时，避免积压
+        redisTemplate.expire(queueKey, 1, TimeUnit.HOURS);
+        System.out.println("操作已加入队列: documentId=" + documentId + ", userId=" + userId + ", queueLength=" + getQueueLength(documentId));
+    }
+
+    @Override
+    public String dequeueOperation(Long documentId) {
+        String queueKey = RedisKeyConstant.buildDocumentLockQueueKey(documentId);
+        Object item = redisTemplate.opsForList().leftPop(queueKey);
+        if (item != null) {
+            System.out.println("从队列中取出操作: documentId=" + documentId + ", item=" + item);
+        }
+        return item != null ? item.toString() : null;
+    }
+
+    @Override
+    public Long getQueueLength(Long documentId) {
+        String queueKey = RedisKeyConstant.buildDocumentLockQueueKey(documentId);
+        Long length = redisTemplate.opsForList().size(queueKey);
+        return length != null ? length : 0L;
+    }
+
+    @Override
+    public boolean tryDocumentLockWithQueue(Long documentId, Long userId, long maxWaitTime) {
+        String lockKey = RedisKeyConstant.buildDocumentLockKey(documentId);
+        String lockValue = userId.toString() + ":" + System.currentTimeMillis();
+
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < maxWaitTime) {
+            // 尝试获取锁
+            Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, 30, TimeUnit.SECONDS);
+            if (lockAcquired != null && lockAcquired) {
+                System.out.println("获取文档锁成功: documentId=" + documentId + ", userId=" + userId + ", 等待时间=" + (System.currentTimeMillis() - startTime) + "ms");
+                return true;
+            }
+
+            // 检查锁是否过期，如果过期则强制清理
+            Object currentLock = redisTemplate.opsForValue().get(lockKey);
+            if (currentLock != null) {
+                String lockValueStr = currentLock.toString();
+                if (lockValueStr.contains(":")) {
+                    try {
+                        long lockTime = Long.parseLong(lockValueStr.split(":")[1]);
+                        long currentTime = System.currentTimeMillis();
+                        if (currentTime - lockTime > 30000) { // 30秒超时
+                            System.out.println("检测到过期锁，强制删除: " + lockValueStr);
+                            redisTemplate.delete(lockKey);
+                            // 再次尝试获取锁
+                            continue;
+                        }
+                    } catch (Exception e) {
+                        System.out.println("解析锁时间戳失败: " + lockValueStr);
+                    }
+                }
+            }
+
+            // 短暂等待后重试
+            try {
+                Thread.sleep(50); // 50ms
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+
+        System.out.println("获取文档锁超时: documentId=" + documentId + ", userId=" + userId + ", 等待时间=" + maxWaitTime + "ms");
+        return false;
+    }
+
+    @Override
+    public boolean releaseDocumentLockAndProcessQueue(Long documentId, Long userId, OperationHandler operationHandler) {
+        String lockKey = RedisKeyConstant.buildDocumentLockKey(documentId);
+        String expectedValue = userId.toString();
+
+        // 获取当前锁的值
+        Object currentValue = redisTemplate.opsForValue().get(lockKey);
+        if (currentValue != null) {
+            String currentValueStr = currentValue.toString();
+            boolean isOwner = currentValueStr.startsWith(expectedValue + ":");
+
+            if (isOwner) {
+                // 释放锁
+                boolean released = releaseLock(lockKey, currentValueStr);
+                if (released) {
+                    System.out.println("文档锁释放成功: documentId=" + documentId + ", userId=" + userId);
+
+                    // 检查队列中是否有等待的操作
+                    String nextOperation = dequeueOperation(documentId);
+                    if (nextOperation != null && operationHandler != null) {
+                        try {
+                            System.out.println("处理队列中的下一个操作: " + nextOperation);
+                            operationHandler.handleOperation(nextOperation);
+                        } catch (Exception e) {
+                            System.err.println("处理队列操作失败: " + e.getMessage());
+                        }
+                    }
+                }
+                return released;
+            } else {
+                System.out.println("锁释放失败：当前用户不是锁的拥有者");
+                return false;
+            }
+        } else {
+            System.out.println("锁释放失败：锁不存在");
+            return false;
+        }
+    }
 }
 

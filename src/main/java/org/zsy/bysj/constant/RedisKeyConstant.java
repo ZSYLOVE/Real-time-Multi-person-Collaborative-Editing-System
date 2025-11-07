@@ -63,6 +63,11 @@ public class RedisKeyConstant {
     public static final String USER_OFFLINE_KEY = "user_offline:";
 
     /**
+     * 文档锁队列key前缀
+     */
+    public static final String DOCUMENT_LOCK_QUEUE_KEY = "document_lock_queue:";
+
+    /**
      * 构建离线操作队列key
      */
     public static String buildOfflineOperationsKey(Long documentId, Long userId) {
@@ -88,6 +93,13 @@ public class RedisKeyConstant {
      */
     public static String buildUserOfflineKey(Long documentId, Long userId) {
         return USER_OFFLINE_KEY + documentId + ":" + userId;
+    }
+
+    /**
+     * 构建文档锁队列key
+     */
+    public static String buildDocumentLockQueueKey(Long documentId) {
+        return DOCUMENT_LOCK_QUEUE_KEY + documentId;
     }
 }
 
