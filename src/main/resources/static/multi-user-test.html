@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多用户在线编辑测试</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-info {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .online-users {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .user-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+
+        .user-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .user-status.offline {
+            background: #6c757d;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部工具栏 */
+        .top-bar {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .document-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .document-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .collaborators {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .collaborator-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 编辑器区域 */
+        .editor-area {
+            flex: 1;
+            display: flex;
+            padding: 24px;
+            gap: 24px;
+        }
+
+        .editor-container {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-toolbar {
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .toolbar-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .editor-content {
+            flex: 1;
+            padding: 20px;
+            outline: none;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            border: none;
+            resize: none;
+        }
+
+        /* 操作日志 */
+        .operation-log {
+            width: 300px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .log-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            background: #f8f9fa;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            background: white;
+            border-left: 3px solid #667eea;
+        }
+
+        .log-entry.error {
+            border-left-color: #dc3545;
+        }
+
+        .log-entry.success {
+            border-left-color: #28a745;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s;
+        }
+
+        .modal-header {
+            padding: 24px 24px 0;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-body {
+            padding: 0 24px;
+        }
+
+        .modal-footer {
+            padding: 24px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 隐藏元素 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: scale(0.9) translateY(-20px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -300px;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transition: left 0.3s;
+            }
+
+            .sidebar.show {
+                left: 0;
+            }
+
+            .editor-area {
+                flex-direction: column;
+            }
+
+            .operation-log {
+                width: 100%;
+                height: 200px;
+            }
+        }
+
+        /* 连接状态指示器 */
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .connection-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .connection-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .connection-status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* 用户操作指示器 */
+        .user-cursor {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: #667eea;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 侧边栏 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>
+                    <i class="material-icons">group_work</i>
+                    多用户测试
+                </h1>
+                <div class="user-info" id="userInfo">未登录</div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="online-users">
+                    <div class="section-title">
+                        <i class="material-icons">people</i>
+                        在线用户
+                    </div>
+                    <div id="onlineUsersList">
+                        <div class="user-item">
+                            <div style="display: flex; align-items: center;">
+                                <div class="user-avatar">A</div>
+                                <div>
+                                    <div style="font-weight: 500;">用户A</div>
+                                    <div style="font-size: 12px; color: #666;">当前编辑</div>
+                                </div>
+                            </div>
+                            <div class="user-status"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="test-section">
+                    <div class="section-title">
+                        <i class="material-icons">settings</i>
+                        测试控制
+                    </div>
+                    <button class="btn btn-primary" onclick="connectToDocument()" style="width: 100%; margin-bottom: 8px;">
+                        <i class="material-icons">link</i>
+                        连接到文档
+                    </button>
+                    <button class="btn btn-secondary" onclick="disconnectFromDocument()" style="width: 100%; margin-bottom: 8px;">
+                        <i class="material-icons">link_off</i>
+                        断开连接
+                    </button>
+                    <button class="btn btn-success" onclick="simulateTyping()" style="width: 100%; margin-bottom: 8px;">
+                        <i class="material-icons">edit</i>
+                        模拟输入
+                    </button>
+                    <button class="btn btn-warning" onclick="sendTestOperation()" style="width: 100%; margin-bottom: 8px;">
+                        <i class="material-icons">send</i>
+                        发送测试操作
+                    </button>
+                    <button class="btn btn-danger" onclick="clearLog()" style="width: 100%;">
+                        <i class="material-icons">clear</i>
+                        清空日志
+                    </button>
+                </div>
+
+                <div class="test-section">
+                    <div class="section-title">
+                        <i class="material-icons">admin_panel_settings</i>
+                        权限管理
+                    </div>
+                    <div style="font-size: 12px; line-height: 1.5; color: #666;">
+                        <p><strong>我的权限:</strong> <span id="myPermission">未检测</span></p>
+                        <button class="btn btn-secondary" onclick="checkMyPermission()" style="width: 100%; margin: 5px 0; font-size: 11px;">检测权限</button>
+                        <button class="btn btn-primary" onclick="openPermissionModal()" style="width: 100%; margin: 5px 0; font-size: 11px;" id="managePermissionsBtn" style="display: none;">管理权限</button>
+                    </div>
+                </div>
+
+                <div class="test-section">
+                    <div class="section-title">
+                        <i class="material-icons">info</i>
+                        测试信息
+                    </div>
+                    <div style="font-size: 12px; line-height: 1.5; color: #666;">
+                        <p><strong>文档ID:</strong> <span id="currentDocId">未连接</span></p>
+                        <p><strong>用户ID:</strong> <span id="currentUserId">未登录</span></p>
+                        <p><strong>连接状态:</strong> <span class="connection-status disconnected" id="connectionStatus">未连接</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 顶部工具栏 -->
+            <div class="top-bar">
+                <div class="document-info">
+                    <i class="material-icons" style="cursor: pointer; margin-right: 16px;" onclick="toggleSidebar()">menu</i>
+                    <div>
+                        <div class="document-title">多用户协作测试文档</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 2px;">
+                            实时协作编辑测试环境
+                        </div>
+                    </div>
+                </div>
+                <div class="collaborators">
+                    <div class="collaborator-avatar" style="background: #667eea;">A</div>
+                    <div class="collaborator-avatar" style="background: #28a745;">B</div>
+                    <div class="collaborator-avatar" style="background: #ffc107;">C</div>
+                </div>
+            </div>
+
+            <!-- 编辑器区域 -->
+            <div class="editor-area">
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="toolbar-btn" onclick="formatText('bold')">
+                            <i class="material-icons">format_bold</i>
+                        </button>
+                        <button class="toolbar-btn" onclick="formatText('italic')">
+                            <i class="material-icons">format_italic</i>
+                        </button>
+                        <button class="toolbar-btn" onclick="formatText('underline')">
+                            <i class="material-icons">format_underlined</i>
+                        </button>
+                        <span style="margin-left: auto; color: #666; font-size: 12px;">
+                            <i class="material-icons" style="font-size: 16px; vertical-align: middle;">group</i>
+                            <span id="onlineCount">1</span>人在线
+                        </span>
+                    </div>
+                    <div class="editor-content" contenteditable="true" id="editorContent">
+                        欢迎来到多用户在线编辑测试环境！
+
+这是一个用于测试实时协作功能的文档。你可以：
+
+1. 在多个浏览器窗口中打开此页面
+2. 分别登录不同的用户账号
+3. 使用"模拟输入"或"发送测试操作"按钮进行编辑
+4. 观察实时同步效果
+
+注意：当前版本使用手动操作按钮，避免复杂的自动diff算法。
+
+开始测试吧！🚀
+
+用户ID: <span id="editorUserId">未登录</span>
+                    </div>
+                </div>
+
+                <!-- 操作日志 -->
+                <div class="operation-log">
+                    <div class="log-header">
+                        <i class="material-icons" style="vertical-align: middle; margin-right: 8px;">history</i>
+                        操作日志
+                    </div>
+                    <div class="log-content" id="operationLog">
+                        <div class="log-entry">系统已就绪，等待连接...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登录模态框 -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="material-icons">person</i>
+                    用户登录
+                </h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="loginUsername" placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-control" id="loginPassword" placeholder="请输入密码">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('loginModal')">取消</button>
+                <button class="btn btn-primary" onclick="login()">登录</button>
+                <button class="btn btn-outline" onclick="showRegisterModal()">注册</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注册模态框 -->
+    <div class="modal" id="registerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="material-icons">person_add</i>
+                    用户注册
+                </h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="registerUsername" placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">邮箱</label>
+                    <input type="email" class="form-control" id="registerEmail" placeholder="请输入邮箱">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-control" id="registerPassword" placeholder="请输入密码">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">昵称</label>
+                    <input type="text" class="form-control" id="registerNickname" placeholder="请输入昵称">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('registerModal')">取消</button>
+                <button class="btn btn-primary" onclick="register()">注册</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文档选择模态框 -->
+    <div class="modal" id="documentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="material-icons">description</i>
+                    选择测试文档
+                </h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">文档ID</label>
+                    <input type="number" class="form-control" id="documentIdInput" placeholder="输入文档ID进行测试" value="1">
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                    💡 提示：可以输入同一个文档ID来测试多用户协作
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('documentModal')">取消</button>
+                <button class="btn btn-primary" onclick="connectToSelectedDocument()">连接</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 权限管理模态框 -->
+    <div class="modal" id="permissionModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="material-icons">admin_panel_settings</i>
+                    权限管理
+                </h3>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px; color: #333;">文档权限列表</h4>
+                    <div id="permissionsList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px;">
+                        <div style="text-align: center; color: #666;">加载中...</div>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                    <h4 style="margin-bottom: 10px; color: #333;">添加用户权限</h4>
+                    <div class="form-group">
+                        <label class="form-label">用户ID</label>
+                        <input type="number" class="form-control" id="newUserId" placeholder="输入用户ID">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">权限类型</label>
+                        <select class="form-control" id="newPermissionType">
+                            <option value="READ">只读 (READ)</option>
+                            <option value="WRITE">读写 (WRITE)</option>
+                            <option value="ADMIN">管理员 (ADMIN)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-success" onclick="addUserPermission()" style="width: 100%;">添加权限</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('permissionModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api';
+        let currentToken = localStorage.getItem('token') || '';
+        let currentUserId = localStorage.getItem('userId') || '';
+        let currentUser = null;
+        let currentDocumentId = null;
+        let stompClient = null;
+        let isConnected = false;
+        let lastContent = '';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateAuthStatus();
+            loadLibraries();
+            showModal('loginModal'); // 启动时显示登录框
+        });
+
+        // 加载WebSocket库
+        async function loadLibraries() {
+            try {
+                // 加载SockJS
+                if (typeof SockJS === 'undefined') {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js');
+                    log('SockJS库加载成功');
+                }
+
+                // 加载STOMP
+                if (typeof Stomp === 'undefined') {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js');
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+
+                log('所有WebSocket库加载完成');
+            } catch (error) {
+                log('库加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 动态加载脚本
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('加载失败: ' + src));
+                document.head.appendChild(script);
+
+                setTimeout(() => reject(new Error('加载超时: ' + src)), 10000);
+            });
+        }
+
+        // 登录相关函数
+        async function register() {
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const nickname = document.getElementById('registerNickname').value;
+
+            try {
+                const result = await apiRequest('/user/register', 'POST', {
+                    username, email, password, nickname
+                }, false);
+
+                if (result.ok) {
+                    alert('注册成功！请登录。');
+                    hideModal('registerModal');
+                    showModal('loginModal');
+                } else {
+                    alert('注册失败：' + (result.data.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('注册失败：' + error.message);
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const result = await apiRequest('/user/login', 'POST', {
+                    username, password
+                }, false);
+
+                if (result.ok && result.data.data) {
+                    currentToken = result.data.data.token;
+                    currentUserId = result.data.data.userId;
+                    currentUser = result.data.data;
+
+                    localStorage.setItem('token', currentToken);
+                    localStorage.setItem('userId', currentUserId);
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+
+                    updateAuthStatus();
+                    hideModal('loginModal');
+
+                    // 登录成功后显示文档选择
+                    setTimeout(() => {
+                        showModal('documentModal');
+                    }, 500);
+
+                    log('用户登录成功: ' + currentUser.username, 'success');
+                } else {
+                    alert('登录失败：' + (result.data.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('登录失败：' + error.message);
+            }
+        }
+
+        function showRegisterModal() {
+            hideModal('loginModal');
+            showModal('registerModal');
+        }
+
+        // 更新认证状态
+        function updateAuthStatus() {
+            if (currentUser) {
+                document.getElementById('userInfo').textContent = `用户: ${currentUser.nickname || currentUser.username}`;
+                document.getElementById('currentUserId').textContent = currentUserId;
+                document.getElementById('editorUserId').textContent = currentUserId;
+            } else {
+                document.getElementById('editorUserId').textContent = '未登录';
+            }
+        }
+
+        // API请求函数
+        async function apiRequest(url, method = 'GET', body = null, needAuth = true) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (needAuth && currentToken) {
+                headers['Authorization'] = `Bearer ${currentToken}`;
+            }
+            const options = {
+                method: method,
+                headers: headers
+            };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            try {
+                const response = await fetch(`${API_BASE_URL}${url}`, options);
+                const data = await response.json();
+                return { ok: response.ok, data: data, status: response.status };
+            } catch (error) {
+                return { ok: false, data: { message: error.message }, status: 0 };
+            }
+        }
+
+        // WebSocket连接管理
+        async function connectToDocument() {
+            if (!currentUserId) {
+                alert('请先登录');
+                showModal('loginModal');
+                return;
+            }
+
+            showModal('documentModal');
+        }
+
+        async function connectToSelectedDocument() {
+            const docId = document.getElementById('documentIdInput').value;
+            if (!docId) {
+                alert('请输入文档ID');
+                return;
+            }
+
+            currentDocumentId = parseInt(docId);
+            document.getElementById('currentDocId').textContent = currentDocumentId;
+
+            hideModal('documentModal');
+            await establishWebSocketConnection();
+        }
+
+        async function establishWebSocketConnection() {
+            if (!currentDocumentId || !currentUserId) {
+                log('缺少必要信息，无法连接', 'error');
+                return;
+            }
+
+            try {
+                updateConnectionStatus('connecting', '连接中...');
+                log('开始建立WebSocket连接...');
+
+                // 断开现有连接
+                if (stompClient && stompClient.connected) {
+                    stompClient.disconnect();
+                }
+
+                // 创建SockJS连接，在URL中传递token
+                const socket = new SockJS('http://localhost:8080/ws?token=' + encodeURIComponent(currentToken));
+
+                // 检查STOMP对象
+                let StompClient = Stomp || window.Stomp || window.stomp || window.STOMP;
+                if (!StompClient) {
+                    throw new Error('STOMP对象未找到');
+                }
+
+                stompClient = StompClient.over(socket);
+                stompClient.debug = (str) => log('STOMP: ' + str, 'debug');
+
+                // 连接到WebSocket
+                stompClient.connect({}, function(frame) {
+                    log('WebSocket连接成功! Frame: ' + frame, 'success');
+                    updateConnectionStatus('connected', '已连接');
+                    isConnected = true;
+
+                    // 订阅文档频道（包含所有消息类型）
+                    const documentSubscription = stompClient.subscribe('/topic/document/' + currentDocumentId, function(message) {
+                        const data = JSON.parse(message.body);
+                        log('收到文档消息: ' + data.type, 'success');
+
+                        // 根据消息类型处理
+                        switch (data.type) {
+                            case 'OPERATION_APPLIED':
+                                handleRemoteOperation(data);
+                                break;
+                            case 'CURSOR_MOVE':
+                                handleCursorMove(data);
+                                break;
+                            case 'USER_JOINED':
+                                handleUserJoined(data);
+                                break;
+                            case 'USER_LEFT':
+                                handleUserLeft(data);
+                                break;
+                            case 'OFFLINE_SYNC_COMPLETE':
+                                handleOfflineSyncComplete(data);
+                                break;
+                            default:
+                                log('未知消息类型: ' + data.type, 'warning');
+                        }
+                    });
+
+                    // 发送加入文档消息
+                    sendJoinMessage();
+
+                    // 获取初始在线用户列表
+                    setTimeout(() => {
+                        updateOnlineUsersList();
+                    }, 1000);
+
+                    log('已订阅所有必要频道', 'success');
+
+                }, function(error) {
+                    log('WebSocket连接失败: ' + error, 'error');
+                    updateConnectionStatus('disconnected', '连接失败');
+                    isConnected = false;
+                });
+
+                // 添加连接断开处理
+                stompClient.onclose = function() {
+                    log('WebSocket连接已断开', 'warning');
+                    updateConnectionStatus('disconnected', '已断开');
+                    isConnected = false;
+                };
+
+                stompClient.onerror = function(error) {
+                    log('WebSocket发生错误: ' + error, 'error');
+                };
+
+            } catch (error) {
+                log('建立连接时出错: ' + error.message, 'error');
+                updateConnectionStatus('disconnected', '连接失败');
+                isConnected = false;
+            }
+        }
+
+        function disconnectFromDocument() {
+            if (stompClient && stompClient.connected) {
+                // 发送离开消息
+                sendLeaveMessage();
+                stompClient.disconnect();
+                log('已断开WebSocket连接', 'success');
+                updateConnectionStatus('disconnected', '已断开');
+                isConnected = false;
+            } else {
+                log('当前未连接', 'error');
+            }
+        }
+
+        // 发送消息
+        function sendJoinMessage() {
+            if (!stompClient || !stompClient.connected) return;
+
+            const message = {
+                userId: parseInt(currentUserId),
+                documentId: currentDocumentId,
+                type: 'JOIN',
+                timestamp: Date.now()
+            };
+
+            stompClient.send('/app/document/join', {}, JSON.stringify(message));
+            log('发送加入文档消息', 'success');
+        }
+
+        function sendLeaveMessage() {
+            if (!stompClient || !stompClient.connected) return;
+
+            const message = {
+                userId: parseInt(currentUserId),
+                documentId: currentDocumentId,
+                type: 'LEAVE',
+                timestamp: Date.now()
+            };
+
+            stompClient.send('/app/document/leave', {}, JSON.stringify(message));
+            log('发送离开文档消息', 'success');
+        }
+
+        function sendOperation(operation) {
+            if (!stompClient || !stompClient.connected) {
+                log('WebSocket未连接，无法发送操作', 'error');
+                return;
+            }
+
+            const message = {
+                userId: parseInt(currentUserId),
+                documentId: currentDocumentId,
+                type: 'OPERATION',
+                data: operation,  // 操作数据放在data字段中
+                timestamp: Date.now()
+            };
+
+            try {
+                stompClient.send('/app/document/operation', {}, JSON.stringify(message));
+                log('发送操作: ' + JSON.stringify(operation), 'success');
+            } catch (error) {
+                log('发送操作失败: ' + error.message, 'error');
+            }
+        }
+
+        // 处理远程操作
+        function handleRemoteOperation(data) {
+            log('收到远程操作: ' + JSON.stringify(data), 'success');
+
+            // 从响应数据中提取内容更新
+            const responseData = data.data || {};
+            if (responseData.content) {
+                // 更新编辑器内容
+                const editor = document.getElementById('editorContent');
+                if (data.userId !== parseInt(currentUserId)) {
+                    editor.textContent = responseData.content;
+                    log('内容已同步更新', 'success');
+                }
+            }
+        }
+
+        // 处理用户加入
+        function handleUserJoined(data) {
+            log('用户加入: ' + data.userId, 'success');
+            // 重新获取在线用户列表
+            updateOnlineUsersList();
+        }
+
+        // 处理用户离开
+        function handleUserLeft(data) {
+            log('用户离开: ' + data.userId, 'success');
+            // 重新获取在线用户列表
+            updateOnlineUsersList();
+        }
+
+        // 处理光标移动
+        function handleCursorMove(data) {
+            log('光标移动: 用户' + data.userId + ' 位置' + (data.data?.position || 0), 'success');
+            // 可以在这里更新光标显示
+        }
+
+        // 处理离线同步完成
+        function handleOfflineSyncComplete(data) {
+            log('离线同步完成: ' + data.data?.syncedCount + '个操作已同步', 'success');
+        }
+
+        // 更新在线用户列表
+        async function updateOnlineUsersList() {
+            try {
+                // 调用API获取在线用户列表
+                const result = await apiRequest('/collaboration/online/' + currentDocumentId, 'GET', null, true);
+                if (result.ok && result.data.data) {
+                    updateOnlineUsers(result.data.data);
+                }
+            } catch (error) {
+                log('获取在线用户列表失败: ' + error.message, 'error');
+            }
+        }
+
+        // 处理用户状态更新
+        function handleUserStatusUpdate(data) {
+            log('用户状态更新: ' + JSON.stringify(data), 'success');
+
+            // 更新在线用户列表
+            updateOnlineUsers(data.users || []);
+        }
+
+        // 应用远程操作（简化版）
+        function applyRemoteOperation(operation) {
+            const editor = document.getElementById('editorContent');
+            let content = editor.textContent;
+
+            if (operation.type === 'INSERT') {
+                const position = Math.min(operation.position || 0, content.length);
+                content = content.slice(0, position) + (operation.data || '') + content.slice(position);
+            } else if (operation.type === 'DELETE') {
+                const position = operation.position || 0;
+                const length = operation.length || 1;
+                content = content.slice(0, position) + content.slice(position + length);
+            }
+
+            editor.textContent = content;
+            log('已应用远程操作', 'success');
+        }
+
+        // 处理本地内容变化 - 简化为手动触发
+        function handleContentChange() {
+            // 当前版本暂时禁用自动内容变化检测
+            // 用户可以通过"模拟输入"按钮手动发送操作
+            // 或者直接在编辑器中输入，然后点击"发送测试操作"按钮
+        }
+
+        // 检测内容变化（简化版）
+        function detectContentChanges(oldContent, newContent) {
+            const changes = [];
+
+            if (newContent.length > oldContent.length) {
+                // 插入操作
+                const insertPos = findDifferencePosition(oldContent, newContent);
+                const insertData = newContent.slice(insertPos, insertPos + (newContent.length - oldContent.length));
+                changes.push({
+                    type: 'INSERT',
+                    data: insertData,
+                    position: insertPos
+                });
+            } else if (newContent.length < oldContent.length) {
+                // 删除操作
+                const deletePos = findDifferencePosition(oldContent, newContent);
+                const deleteLength = oldContent.length - newContent.length;
+                changes.push({
+                    type: 'DELETE',
+                    position: deletePos,
+                    length: deleteLength
+                });
+            }
+
+            return changes;
+        }
+
+        // 查找差异位置（简化版）
+        function findDifferencePosition(str1, str2) {
+            const minLength = Math.min(str1.length, str2.length);
+            for (let i = 0; i < minLength; i++) {
+                if (str1[i] !== str2[i]) {
+                    return i;
+                }
+            }
+            return minLength;
+        }
+
+        // 模拟输入 - 简化为简单的插入操作
+        function simulateTyping() {
+            if (!isConnected) {
+                log('请先连接到文档', 'error');
+                return;
+            }
+
+            // 发送一个简单的插入操作
+            const operation = {
+                type: 'INSERT',
+                data: ' [用户' + currentUserId + '输入]',
+                position: document.getElementById('editorContent').textContent.length
+            };
+
+            sendOperation(operation);
+            log('发送模拟输入操作', 'success');
+        }
+
+        // 发送测试操作
+        function sendTestOperation() {
+            if (!isConnected) {
+                log('请先连接到文档', 'error');
+                return;
+            }
+
+            // 发送一个简单的测试插入操作
+            const operation = {
+                type: 'INSERT',
+                data: ' [测试操作 - 用户' + currentUserId + ']',
+                position: Math.floor(Math.random() * 50) // 随机位置，避免冲突
+            };
+
+            sendOperation(operation);
+            log('发送测试操作: ' + JSON.stringify(operation), 'success');
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = 'connection-status ' + status;
+            statusEl.textContent = message || status;
+        }
+
+        // 更新在线用户
+        function updateOnlineUsers(users) {
+            const count = users.length || 1;
+            document.getElementById('onlineCount').textContent = count;
+
+            // 更新用户列表（简化版）
+            const userList = document.getElementById('onlineUsersList');
+            userList.innerHTML = users.map((user, index) => `
+                <div class="user-item">
+                    <div style="display: flex; align-items: center;">
+                        <div class="user-avatar">${String.fromCharCode(65 + index)}</div>
+                        <div>
+                            <div style="font-weight: 500;">用户${user.userId}</div>
+                            <div style="font-size: 12px; color: #666;">${user.status || '在线'}</div>
+                        </div>
+                    </div>
+                    <div class="user-status"></div>
+                </div>
+            `).join('') || `
+                <div class="user-item">
+                    <div style="display: flex; align-items: center;">
+                        <div class="user-avatar">A</div>
+                        <div>
+                            <div style="font-weight: 500;">当前用户</div>
+                            <div style="font-size: 12px; color: #666;">在线</div>
+                        </div>
+                    </div>
+                    <div class="user-status"></div>
+                </div>
+            `;
+        }
+
+        // 日志记录
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('operationLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry ' + (type === 'error' ? 'error' : type === 'success' ? 'success' : '');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        // 清空日志
+        function clearLog() {
+            document.getElementById('operationLog').innerHTML = '';
+        }
+
+        // 模态框管理
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        // 侧边栏切换
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+        }
+
+        // 格式化文本（模拟）
+        function formatText(format) {
+            log('文本格式化功能: ' + format, 'success');
+            // 这里可以实现实际的文本格式化
+        }
+
+        // 页面卸载时断开连接
+        window.addEventListener('beforeunload', function() {
+            if (stompClient && stompClient.connected) {
+                sendLeaveMessage();
+                stompClient.disconnect();
+            }
+        });
+
+        // 权限管理相关函数
+        async function checkMyPermission() {
+            if (!currentUserId || !currentDocumentId) {
+                log('请先登录并连接到文档', 'error');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('/permissions/check?documentId=' + currentDocumentId + '&userId=' + currentUserId + '&permissionType=ADMIN', 'GET', null, true);
+
+                if (result.ok && result.data.data) {
+                    const hasAdmin = result.data.data.hasPermission;
+                    document.getElementById('myPermission').textContent = hasAdmin ? '管理员' : '普通用户';
+
+                    // 显示或隐藏管理权限按钮
+                    document.getElementById('managePermissionsBtn').style.display = hasAdmin ? 'block' : 'none';
+
+                    log('权限检测完成: ' + (hasAdmin ? '管理员' : '普通用户'), 'success');
+                } else {
+                    document.getElementById('myPermission').textContent = '检测失败';
+                    log('权限检测失败: ' + (result.data?.message || '未知错误'), 'error');
+                }
+            } catch (error) {
+                document.getElementById('myPermission').textContent = '检测失败';
+                log('权限检测异常: ' + error.message, 'error');
+            }
+        }
+
+        function openPermissionModal() {
+            if (!currentDocumentId) {
+                log('请先连接到文档', 'error');
+                return;
+            }
+
+            showModal('permissionModal');
+            loadPermissionsList();
+        }
+
+        async function loadPermissionsList() {
+            const permissionsList = document.getElementById('permissionsList');
+
+            try {
+                permissionsList.innerHTML = '<div style="text-align: center; color: #666;">加载中...</div>';
+
+                const result = await apiRequest('/permissions/document/' + currentDocumentId, 'GET', null, true);
+
+                if (result.ok && result.data.data) {
+                    const permissions = result.data.data;
+
+                    if (permissions.length === 0) {
+                        permissionsList.innerHTML = '<div style="text-align: center; color: #666;">暂无权限设置</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    permissions.forEach(permission => {
+                        const permissionText = getPermissionText(permission.permissionType);
+                        html += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+                                <div>
+                                    <strong>用户 ${permission.userId}</strong>
+                                    <span style="color: #666; margin-left: 10px;">${permissionText}</span>
+                                </div>
+                                <div>
+                                    <select onchange="changeUserPermission(${permission.userId}, this.value)" style="font-size: 12px; padding: 2px 4px;">
+                                        <option value="READ" ${permission.permissionType === 'READ' ? 'selected' : ''}>只读</option>
+                                        <option value="WRITE" ${permission.permissionType === 'WRITE' ? 'selected' : ''}>读写</option>
+                                        <option value="ADMIN" ${permission.permissionType === 'ADMIN' ? 'selected' : ''}>管理员</option>
+                                    </select>
+                                    <button onclick="removeUserPermission(${permission.userId})" style="margin-left: 5px; font-size: 12px; padding: 2px 6px;" class="btn btn-danger">删除</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    permissionsList.innerHTML = html;
+                } else {
+                    permissionsList.innerHTML = '<div style="text-align: center; color: #f00;">加载失败: ' + (result.data?.message || '未知错误') + '</div>';
+                }
+            } catch (error) {
+                permissionsList.innerHTML = '<div style="text-align: center; color: #f00;">加载异常: ' + error.message + '</div>';
+            }
+        }
+
+        async function addUserPermission() {
+            const userId = document.getElementById('newUserId').value;
+            const permissionType = document.getElementById('newPermissionType').value;
+
+            if (!userId || !permissionType) {
+                alert('请输入用户ID和权限类型');
+                return;
+            }
+
+            try {
+                const result = await apiRequest('/permissions', 'POST', {
+                    documentId: currentDocumentId,
+                    userId: parseInt(userId),
+                    permissionType: permissionType
+                }, true);
+
+                if (result.ok) {
+                    log('权限添加成功', 'success');
+                    document.getElementById('newUserId').value = '';
+                    loadPermissionsList(); // 重新加载权限列表
+                } else {
+                    log('权限添加失败: ' + (result.data?.message || '未知错误'), 'error');
+                }
+            } catch (error) {
+                log('权限添加异常: ' + error.message, 'error');
+            }
+        }
+
+        async function changeUserPermission(userId, newPermissionType) {
+            try {
+                const result = await apiRequest('/permissions', 'PUT', {
+                    documentId: currentDocumentId,
+                    userId: parseInt(userId),
+                    permissionType: newPermissionType
+                }, true);
+
+                if (result.ok) {
+                    log('权限修改成功', 'success');
+                } else {
+                    log('权限修改失败: ' + (result.data?.message || '未知错误'), 'error');
+                    loadPermissionsList(); // 重新加载以恢复原值
+                }
+            } catch (error) {
+                log('权限修改异常: ' + error.message, 'error');
+                loadPermissionsList(); // 重新加载以恢复原值
+            }
+        }
+
+        async function removeUserPermission(userId) {
+            if (!confirm('确定要移除该用户的权限吗？')) {
+                return;
+            }
+
+            try {
+                const result = await apiRequest('/permissions?documentId=' + currentDocumentId + '&userId=' + userId, 'DELETE', null, true);
+
+                if (result.ok) {
+                    log('权限移除成功', 'success');
+                    loadPermissionsList(); // 重新加载权限列表
+                } else {
+                    log('权限移除失败: ' + (result.data?.message || '未知错误'), 'error');
+                }
+            } catch (error) {
+                log('权限移除异常: ' + error.message, 'error');
+            }
+        }
+
+        function getPermissionText(permissionType) {
+            switch (permissionType) {
+                case 'READ': return '只读';
+                case 'WRITE': return '读写';
+                case 'ADMIN': return '管理员';
+                default: return '未知';
+            }
+        }
+
+        // 初始化最后内容
+        setTimeout(() => {
+            lastContent = document.getElementById('editorContent').textContent;
+        }, 1000);
+    </script>
+</body>
+</html>

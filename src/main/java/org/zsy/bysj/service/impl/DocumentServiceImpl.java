@@ -15,6 +15,7 @@ import org.zsy.bysj.model.Document;
 import org.zsy.bysj.model.DocumentOperation;
 import org.zsy.bysj.model.DocumentVersion;
 import org.zsy.bysj.service.DocumentService;
+import org.zsy.bysj.service.PermissionService;
 import org.zsy.bysj.constant.RedisKeyConstant;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -41,10 +42,10 @@ public class DocumentServiceImpl implements DocumentService {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private PermissionService permissionService;
 
     @Autowired
-    private org.zsy.bysj.service.PermissionService permissionService;
+    private ObjectMapper objectMapper;
 
     private static final int CACHE_EXPIRE_HOURS = 24;
 
@@ -138,6 +139,13 @@ public class DocumentServiceImpl implements DocumentService {
         if (document == null) {
             throw new RuntimeException("文档不存在");
         }
+
+                    // 检查用户是否有编辑权限
+                    boolean hasWritePermission = permissionService.hasPermission(documentId, userId, "WRITE");
+                    System.out.println("权限检查: 用户" + userId + " 对文档" + documentId + " 的写权限 = " + hasWritePermission);
+                    if (!hasWritePermission) {
+                        throw new RuntimeException("无权限编辑此文档");
+                    }
 
         // 获取自用户上次操作以来的所有操作（使用MyBatis Plus的QueryWrapper）
         QueryWrapper<DocumentOperation> queryWrapper = new QueryWrapper<>();

@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速测试 - 协同编辑系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.running { background: #d1ecf1; color: #0c5460; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .progress {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .summary h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 快速测试 - 协同编辑系统</h1>
+            <p>一键测试所有核心功能</p>
+        </div>
+
+        <div class="content">
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <!-- 用户认证测试 -->
+            <div class="test-section" id="authTest">
+                <div class="test-header">
+                    <h3 class="test-title">🔐 用户认证</h3>
+                    <span class="status pending" id="authStatus">待测试</span>
+                </div>
+                <div class="test-controls">
+                    <button class="btn btn-primary" onclick="runAuthTest()">开始测试</button>
+                </div>
+                <div class="result hidden" id="authResult"></div>
+            </div>
+
+            <!-- 文档管理测试 -->
+            <div class="test-section" id="documentTest">
+                <div class="test-header">
+                    <h3 class="test-title">📄 文档管理</h3>
+                    <span class="status pending" id="documentStatus">待测试</span>
+                </div>
+                <div class="test-controls">
+                    <button class="btn btn-primary" onclick="runDocumentTest()">开始测试</button>
+                </div>
+                <div class="result hidden" id="documentResult"></div>
+            </div>
+
+            <!-- OT算法测试 -->
+            <div class="test-section" id="otTest">
+                <div class="test-header">
+                    <h3 class="test-title">🔄 OT算法</h3>
+                    <span class="status pending" id="otStatus">待测试</span>
+                </div>
+                <div class="test-controls">
+                    <button class="btn btn-primary" onclick="runOTTest()">开始测试</button>
+                </div>
+                <div class="result hidden" id="otResult"></div>
+            </div>
+
+            <!-- 导出功能测试 -->
+            <div class="test-section" id="exportTest">
+                <div class="test-header">
+                    <h3 class="test-title">📥 导出功能</h3>
+                    <span class="status pending" id="exportStatus">待测试</span>
+                </div>
+                <div class="test-controls">
+                    <button class="btn btn-primary" onclick="runExportTest()">开始测试</button>
+                </div>
+                <div class="result hidden" id="exportResult"></div>
+            </div>
+
+            <!-- WebSocket测试 -->
+            <div class="test-section" id="wsTest">
+                <div class="test-header">
+                    <h3 class="test-title">🌐 WebSocket通信</h3>
+                    <span class="status pending" id="wsStatus">待测试</span>
+                </div>
+                <div class="test-controls">
+                    <button class="btn btn-primary" onclick="runWSTest()">开始测试</button>
+                </div>
+                <div class="result hidden" id="wsResult"></div>
+            </div>
+
+            <!-- 完整流程测试 -->
+            <div class="test-section" id="fullTest">
+                <div class="test-header">
+                    <h3 class="test-title">🎯 完整流程测试</h3>
+                    <span class="status pending" id="fullStatus">待测试</span>
+                </div>
+                <div class="test-controls">
+                    <button class="btn btn-success" onclick="runFullTest()">运行完整测试</button>
+                    <button class="btn btn-secondary" onclick="clearResults()">清空结果</button>
+                </div>
+                <div class="result hidden" id="fullResult"></div>
+            </div>
+
+            <!-- 测试总结 -->
+            <div class="summary">
+                <h3>📊 测试结果统计</h3>
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="totalTests">0</span>
+                        <span class="stat-label">总测试数</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="passedTests">0</span>
+                        <span class="stat-label">通过测试</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="failedTests">0</span>
+                        <span class="stat-label">失败测试</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="successRate">0%</span>
+                        <span class="stat-label">成功率</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api';
+        let testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0
+        };
+
+        // 更新进度条
+        function updateProgress() {
+            const progress = (testResults.passed + testResults.failed) / testResults.total * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            updateStats();
+        }
+
+        // 更新统计数据
+        function updateStats() {
+            document.getElementById('totalTests').textContent = testResults.total;
+            document.getElementById('passedTests').textContent = testResults.passed;
+            document.getElementById('failedTests').textContent = testResults.failed;
+            const rate = testResults.total > 0 ? Math.round(testResults.passed / testResults.total * 100) : 0;
+            document.getElementById('successRate').textContent = rate + '%';
+        }
+
+        // 设置测试状态
+        function setTestStatus(testId, status, message = '') {
+            const statusEl = document.getElementById(testId + 'Status');
+            const resultEl = document.getElementById(testId + 'Result');
+
+            statusEl.className = 'status ' + status;
+            statusEl.textContent = status === 'running' ? '测试中...' :
+                                 status === 'success' ? '✅ 通过' :
+                                 status === 'error' ? '❌ 失败' : '待测试';
+
+            if (message) {
+                resultEl.textContent = message;
+                resultEl.className = 'result ' + (status === 'success' ? 'success' : status === 'error' ? 'error' : 'info');
+                resultEl.classList.remove('hidden');
+            }
+        }
+
+        // API请求函数
+        async function apiRequest(url, method = 'GET', body = null, needAuth = true) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (needAuth) {
+                const token = localStorage.getItem('test_token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            const options = {
+                method: method,
+                headers: headers
+            };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            try {
+                const response = await fetch(`${API_BASE_URL}${url}`, options);
+                const data = await response.json();
+                return { ok: response.ok, data: data, status: response.status };
+            } catch (error) {
+                return { ok: false, data: { message: error.message }, status: 0 };
+            }
+        }
+
+        // 用户认证测试
+        async function runAuthTest() {
+            setTestStatus('auth', 'running');
+            testResults.total++;
+
+            try {
+                // 测试注册
+                const registerResult = await apiRequest('/user/register', 'POST', {
+                    username: 'testuser_' + Date.now(),
+                    email: 'test_' + Date.now() + '@example.com',
+                    password: 'password123',
+                    nickname: '测试用户'
+                }, false);
+
+                if (!registerResult.ok) {
+                    throw new Error('注册失败: ' + registerResult.data.message);
+                }
+
+                // 测试登录
+                const loginResult = await apiRequest('/user/login', 'POST', {
+                    username: registerResult.data.data.username,
+                    password: 'password123'
+                }, false);
+
+                if (!loginResult.ok || !loginResult.data.data.token) {
+                    throw new Error('登录失败: ' + loginResult.data.message);
+                }
+
+                // 保存token
+                localStorage.setItem('test_token', loginResult.data.data.token);
+                localStorage.setItem('test_user_id', loginResult.data.data.userId);
+
+                setTestStatus('auth', 'success', '✅ 用户注册和登录测试通过\n用户名: ' + registerResult.data.data.username);
+                testResults.passed++;
+
+            } catch (error) {
+                setTestStatus('auth', 'error', '❌ 认证测试失败: ' + error.message);
+                testResults.failed++;
+            }
+
+            updateProgress();
+        }
+
+        // 文档管理测试
+        async function runDocumentTest() {
+            setTestStatus('document', 'running');
+            testResults.total++;
+
+            try {
+                const token = localStorage.getItem('test_token');
+                const userId = localStorage.getItem('test_user_id');
+
+                if (!token || !userId) {
+                    throw new Error('请先运行用户认证测试');
+                }
+
+                // 创建文档
+                const createResult = await apiRequest('/documents', 'POST', {
+                    title: '测试文档_' + Date.now()
+                });
+
+                if (!createResult.ok) {
+                    throw new Error('创建文档失败: ' + createResult.data.message);
+                }
+
+                const docId = createResult.data.data.id;
+                localStorage.setItem('test_doc_id', docId);
+
+                // 查询文档
+                const getResult = await apiRequest(`/documents/${docId}`);
+                if (!getResult.ok) {
+                    throw new Error('查询文档失败: ' + getResult.data.message);
+                }
+
+                // 更新文档
+                const updateResult = await apiRequest(`/documents/${docId}/content`, 'PUT', {
+                    content: '这是测试文档内容'
+                });
+
+                if (!updateResult.ok) {
+                    throw new Error('更新文档失败: ' + updateResult.data.message);
+                }
+
+                // 查询用户文档列表
+                const listResult = await apiRequest(`/documents/user/${userId}`);
+                if (!listResult.ok) {
+                    throw new Error('查询文档列表失败: ' + listResult.data.message);
+                }
+
+                setTestStatus('document', 'success', '✅ 文档CRUD操作测试通过\n文档ID: ' + docId + '\n文档数量: ' + listResult.data.data.length);
+                testResults.passed++;
+
+            } catch (error) {
+                setTestStatus('document', 'error', '❌ 文档管理测试失败: ' + error.message);
+                testResults.failed++;
+            }
+
+            updateProgress();
+        }
+
+        // OT算法测试
+        async function runOTTest() {
+            setTestStatus('ot', 'running');
+            testResults.total++;
+
+            try {
+                const docId = localStorage.getItem('test_doc_id');
+                if (!docId) {
+                    throw new Error('请先运行文档管理测试');
+                }
+
+                // 插入操作
+                const insertResult = await apiRequest(`/documents/${docId}/operation`, 'POST', {
+                    operation: {
+                        type: 'INSERT',
+                        data: 'OT测试文本',
+                        position: 0,
+                        length: 6
+                    }
+                });
+
+                if (!insertResult.ok) {
+                    throw new Error('插入操作失败: ' + insertResult.data.message);
+                }
+
+                // 删除操作
+                const deleteResult = await apiRequest(`/documents/${docId}/operation`, 'POST', {
+                    operation: {
+                        type: 'DELETE',
+                        data: null,
+                        position: 0,
+                        length: 5
+                    }
+                });
+
+                if (!deleteResult.ok) {
+                    throw new Error('删除操作失败: ' + deleteResult.data.message);
+                }
+
+                setTestStatus('ot', 'success', '✅ OT算法操作测试通过\n插入和删除操作正常');
+                testResults.passed++;
+
+            } catch (error) {
+                setTestStatus('ot', 'error', '❌ OT算法测试失败: ' + error.message);
+                testResults.failed++;
+            }
+
+            updateProgress();
+        }
+
+        // 导出功能测试
+        async function runExportTest() {
+            setTestStatus('export', 'running');
+            testResults.total++;
+
+            try {
+                const docId = localStorage.getItem('test_doc_id');
+                if (!docId) {
+                    throw new Error('请先运行文档管理测试');
+                }
+
+                // 测试PDF导出
+                const pdfResponse = await fetch(`${API_BASE_URL}/export/pdf/${docId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('test_token')}`
+                    }
+                });
+
+                if (!pdfResponse.ok) {
+                    throw new Error('PDF导出失败: ' + pdfResponse.status);
+                }
+
+                // 测试Word导出
+                const wordResponse = await fetch(`${API_BASE_URL}/export/word/${docId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('test_token')}`
+                    }
+                });
+
+                if (!wordResponse.ok) {
+                    throw new Error('Word导出失败: ' + wordResponse.status);
+                }
+
+                // 测试Markdown导出
+                const mdResponse = await fetch(`${API_BASE_URL}/export/markdown/${docId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('test_token')}`
+                    }
+                });
+
+                if (!mdResponse.ok) {
+                    throw new Error('Markdown导出失败: ' + mdResponse.status);
+                }
+
+                setTestStatus('export', 'success', '✅ 导出功能测试通过\nPDF、Word、Markdown导出都正常');
+                testResults.passed++;
+
+            } catch (error) {
+                setTestStatus('export', 'error', '❌ 导出功能测试失败: ' + error.message);
+                testResults.failed++;
+            }
+
+            updateProgress();
+        }
+
+        // WebSocket测试
+        async function runWSTest() {
+            setTestStatus('ws', 'running');
+            testResults.total++;
+
+            try {
+                // 检查库是否已加载，如果没有则加载
+                if (typeof SockJS === 'undefined') {
+                    setTestStatus('ws', 'running', '加载SockJS库...');
+                    await loadScript('https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js');
+                }
+
+                if (typeof Stomp === 'undefined') {
+                    setTestStatus('ws', 'running', '加载STOMP库...');
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js');
+                    // 等待库初始化
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    // 检查是否真的加载成功
+                    if (typeof Stomp === 'undefined') {
+                        throw new Error('STOMP库加载失败，全局变量未定义');
+                    }
+                }
+
+                // 创建SockJS连接
+                const socket = new SockJS('http://localhost:8080/ws');
+                // 检查STOMP对象是否存在，可能使用不同的变量名
+                let StompClient = Stomp || window.Stomp;
+                if (!StompClient) {
+                    // 尝试其他可能的全局变量名
+                    StompClient = window.stomp || window.STOMP;
+                }
+                if (!StompClient) {
+                    throw new Error('STOMP对象未找到，可能库加载失败或使用不同变量名');
+                }
+                const stompClient = StompClient.over(socket);
+
+                // 简化配置以提高兼容性
+                stompClient.debug = () => {}; // 禁用调试信息
+
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('WebSocket连接超时 (10秒)'));
+                        if (stompClient && stompClient.connected) {
+                            stompClient.disconnect();
+                        }
+                    }, 10000);
+
+                    stompClient.connect({}, function(frame) {
+                        clearTimeout(timeout);
+                        // 连接成功，立即断开
+                        stompClient.disconnect();
+                        resolve();
+                    }, function(error) {
+                        clearTimeout(timeout);
+                        reject(new Error('WebSocket连接失败: ' + (error.headers ? error.headers.message : error)));
+                    });
+                });
+
+                setTestStatus('ws', 'success', '✅ WebSocket连接测试通过\nSockJS + STOMP连接正常\n实时通信服务可用\n\n测试结果:\n- 连接建立: ✓\n- 协议握手: ✓\n- 连接断开: ✓');
+                testResults.passed++;
+
+            } catch (error) {
+                setTestStatus('ws', 'error', '❌ WebSocket测试失败: ' + error.message + '\n\n可能的原因:\n1. WebSocket服务未启动\n2. 端口8080被占用或无响应\n3. 防火墙阻止WebSocket连接\n4. SockJS/STOMP库加载失败\n\n请检查:\n- 应用是否在8080端口运行\n- 控制台是否有WebSocket相关错误\n- 网络连接是否正常');
+                testResults.failed++;
+            }
+
+            updateProgress();
+        }
+
+        // 动态加载脚本的辅助函数
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('库加载失败: ' + src));
+                document.head.appendChild(script);
+
+                // 超时处理
+                setTimeout(() => reject(new Error('库加载超时: ' + src)), 8000);
+            });
+        }
+
+        // 完整流程测试
+        async function runFullTest() {
+            setTestStatus('full', 'running');
+            testResults.total++;
+
+            try {
+                // 重置结果
+                testResults = { total: 1, passed: 0, failed: 0 };
+
+                // 依次运行所有测试
+                await runAuthTest();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                await runDocumentTest();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                await runOTTest();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                await runExportTest();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                await runWSTest();
+
+                const successRate = Math.round(testResults.passed / (testResults.passed + testResults.failed) * 100);
+                setTestStatus('full', 'success', `🎉 完整测试流程完成\n通过: ${testResults.passed} 失败: ${testResults.failed}\n成功率: ${successRate}%`);
+                testResults.passed++;
+
+            } catch (error) {
+                setTestStatus('full', 'error', '❌ 完整测试失败: ' + error.message);
+                testResults.failed++;
+            }
+
+            updateProgress();
+        }
+
+        // 清空结果
+        function clearResults() {
+            // 重置所有测试状态
+            ['auth', 'document', 'ot', 'export', 'ws', 'full'].forEach(test => {
+                setTestStatus(test, 'pending');
+                const resultEl = document.getElementById(test + 'Result');
+                resultEl.classList.add('hidden');
+                resultEl.textContent = '';
+            });
+
+            // 重置统计
+            testResults = { total: 0, passed: 0, failed: 0 };
+            updateProgress();
+
+            // 清理本地存储
+            localStorage.removeItem('test_token');
+            localStorage.removeItem('test_user_id');
+            localStorage.removeItem('test_doc_id');
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStats();
+        });
+    </script>
+</body>
+</html>

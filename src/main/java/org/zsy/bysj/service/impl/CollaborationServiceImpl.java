@@ -40,9 +40,12 @@ public class CollaborationServiceImpl implements CollaborationService {
     public void handleOperation(WebSocketMessage message) {
         Long documentId = message.getDocumentId();
         Long userId = message.getUserId();
-        
+
+        System.out.println("开始处理操作: 用户" + userId + " 在文档" + documentId + " 中执行操作");
+
         // 检查用户是否在线，如果离线则保存到离线队列
         if (offlineSyncService.isUserOffline(documentId, userId)) {
+            System.out.println("用户" + userId + "离线，保存操作到离线队列");
             Map<String, Object> dataMap = (Map<String, Object>) message.getData();
             OperationDTO opDTO = parseOperationDTO(dataMap);
             offlineSyncService.saveOfflineOperation(documentId, userId, opDTO);
@@ -51,8 +54,10 @@ public class CollaborationServiceImpl implements CollaborationService {
         
         // 尝试获取分布式锁（最多等待100ms）
         boolean lockAcquired = distributedLockService.tryDocumentLock(documentId, userId, 100, java.util.concurrent.TimeUnit.MILLISECONDS);
+        System.out.println("尝试获取分布式锁: " + (lockAcquired ? "成功" : "失败"));
         if (!lockAcquired) {
             // 获取锁失败，保存为离线操作
+            System.out.println("锁获取失败，保存为离线操作");
             Map<String, Object> dataMap = (Map<String, Object>) message.getData();
             OperationDTO opDTO = parseOperationDTO(dataMap);
             offlineSyncService.saveOfflineOperation(documentId, userId, opDTO);
@@ -62,34 +67,47 @@ public class CollaborationServiceImpl implements CollaborationService {
         try {
             // 解析操作
             Map<String, Object> dataMap = (Map<String, Object>) message.getData();
+            System.out.println("解析操作数据: " + dataMap);
             OperationDTO opDTO = parseOperationDTO(dataMap);
+            System.out.println("转换后的操作DTO: " + opDTO);
             Operation operation = convertToOperation(opDTO);
-            
+            System.out.println("转换后的Operation: type=" + operation.getType() + ", data=" + operation.getData() + ", position=" + operation.getPosition());
+
             // 获取操作序列号
             Long sequence = distributedLockService.getNextSequence(documentId);
             opDTO.setVersion(sequence.intValue());
-            
+            System.out.println("获取操作序列号: " + sequence);
+
             // 应用操作到文档
+            System.out.println("开始应用操作到文档...");
             Document document = documentService.applyOperation(documentId, operation, userId);
-            
+            System.out.println("操作应用成功，文档版本: " + document.getVersion());
+
             // 构建响应消息
             WebSocketMessage response = new WebSocketMessage();
             response.setType("OPERATION_APPLIED");
             response.setDocumentId(documentId);
             response.setUserId(userId);
             response.setTimestamp(System.currentTimeMillis());
-            
+
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("version", document.getVersion());
             responseData.put("sequence", sequence);
             responseData.put("content", document.getContent());
             response.setData(responseData);
-            
+
+            System.out.println("构建响应消息完成，开始广播...");
+
             // 广播给文档的所有用户（除了发送者）
             broadcastToDocument(documentId, response, userId);
+            System.out.println("消息广播完成");
+        } catch (Exception e) {
+            System.out.println("操作处理过程中发生错误: " + e.getMessage());
+            e.printStackTrace();
         } finally {
             // 释放锁
             distributedLockService.releaseDocumentLock(documentId, userId);
+            System.out.println("释放分布式锁");
         }
     }
 

@@ -197,17 +197,26 @@ public class OTAlgorithm {
      * 应用操作到文档
      */
     public static String apply(String document, Operation op) {
-        if (op == null) {
+        if (op == null || document == null) {
             return document;
         }
 
         StringBuilder sb = new StringBuilder(document);
+        int docLength = sb.length();
+
         switch (op.getType()) {
             case "INSERT":
-                sb.insert(op.getPosition(), op.getData());
+                // 确保插入位置在有效范围内
+                int insertPos = Math.max(0, Math.min(op.getPosition(), docLength));
+                sb.insert(insertPos, op.getData() != null ? op.getData() : "");
                 break;
             case "DELETE":
-                sb.delete(op.getPosition(), op.getPosition() + op.getLength());
+                // 确保删除位置和长度在有效范围内
+                int deletePos = Math.max(0, Math.min(op.getPosition(), docLength));
+                int deleteLength = Math.max(0, Math.min(op.getLength(), docLength - deletePos));
+                if (deleteLength > 0) {
+                    sb.delete(deletePos, deletePos + deleteLength);
+                }
                 break;
             case "RETAIN":
                 // RETAIN操作不改变文档内容

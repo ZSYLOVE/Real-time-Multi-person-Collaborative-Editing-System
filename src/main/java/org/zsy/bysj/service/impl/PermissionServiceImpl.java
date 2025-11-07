@@ -25,28 +25,39 @@ public class PermissionServiceImpl extends ServiceImpl<DocumentPermissionMapper,
 
     @Override
     public boolean hasPermission(Long documentId, Long userId, String permissionType) {
+        System.out.println("检查权限: documentId=" + documentId + ", userId=" + userId + ", permissionType=" + permissionType);
+
         // 首先检查用户是否是文档的创建者（创建者拥有所有权限）
         Document document = documentMapper.selectById(documentId);
         if (document != null && document.getCreatorId() != null && document.getCreatorId().equals(userId)) {
+            System.out.println("用户" + userId + "是文档创建者，拥有所有权限");
             return true; // 创建者拥有所有权限
         }
-        
+
         // 检查权限表
         QueryWrapper<DocumentPermission> wrapper = new QueryWrapper<>();
         wrapper.eq("document_id", documentId)
                .eq("user_id", userId);
         DocumentPermission permission = this.getOne(wrapper);
-        
+
+        System.out.println("数据库权限记录: " + permission);
+
         if (permission == null) {
+            System.out.println("用户" + userId + "没有在权限表中找到记录");
             return false;
         }
-        
+
         // 检查权限级别
         if ("ADMIN".equals(permissionType)) {
-            return "ADMIN".equals(permission.getPermissionType());
+            boolean hasAdmin = "ADMIN".equals(permission.getPermissionType());
+            System.out.println("ADMIN权限检查: " + hasAdmin + " (当前权限: " + permission.getPermissionType() + ")");
+            return hasAdmin;
         } else if ("WRITE".equals(permissionType)) {
-            return "ADMIN".equals(permission.getPermissionType()) || "WRITE".equals(permission.getPermissionType());
+            boolean hasWrite = "ADMIN".equals(permission.getPermissionType()) || "WRITE".equals(permission.getPermissionType());
+            System.out.println("WRITE权限检查: " + hasWrite + " (当前权限: " + permission.getPermissionType() + ")");
+            return hasWrite;
         } else {
+            System.out.println("READ权限检查: true (当前权限: " + permission.getPermissionType() + ")");
             return true; // READ权限最低，有权限就能读
         }
     }

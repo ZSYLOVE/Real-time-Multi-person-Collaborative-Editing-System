@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导出功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .info {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border-left: 4px solid #4CAF50;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .info ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .info li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 文档导出功能测试</h1>
+        
+        <div class="form-group">
+            <label for="documentId">文档ID：</label>
+            <input type="number" id="documentId" placeholder="请输入文档ID" value="1">
+        </div>
+        
+        <div class="form-group">
+            <label for="token">Token（如果需要认证）：</label>
+            <input type="text" id="token" placeholder="请输入Token（可选）">
+        </div>
+        
+        <div class="form-group">
+            <label>导出格式：</label>
+            <button onclick="exportDocument('pdf')">📄 导出为 PDF</button>
+            <button onclick="exportDocument('word')">📝 导出为 Word</button>
+            <button onclick="exportDocument('markdown')">📋 导出为 Markdown</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <div class="info">
+            <h3>📖 使用说明：</h3>
+            <ol>
+                <li>输入文档ID（必填）</li>
+                <li>如果接口需要认证，输入Token（可选）</li>
+                <li>点击相应的导出按钮</li>
+                <li>浏览器会自动下载文件，检查文件名是否正确显示中文</li>
+                <li>如果文件名显示为URL编码（如 %E6%88%91...），请使用 Chrome 或 Firefox 浏览器</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api/export';
+        
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + (isError ? 'error' : 'success');
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        async function exportDocument(format) {
+            const documentId = document.getElementById('documentId').value;
+            const token = document.getElementById('token').value;
+            
+            if (!documentId) {
+                showStatus('❌ 请输入文档ID', true);
+                return;
+            }
+            
+            const url = `${API_BASE_URL}/${format}/${documentId}`;
+            
+            try {
+                showStatus('⏳ 正在导出...', false);
+                
+                const headers = {};
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`导出失败: ${response.status} ${response.statusText}`);
+                }
+                
+                // 获取文件名
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let fileName = `document.${format === 'word' ? 'docx' : format === 'markdown' ? 'md' : 'pdf'}`;
+                
+                if (contentDisposition) {
+                    // 优先使用 filename* (RFC 5987)
+                    const fileNameMatch = contentDisposition.match(/filename\*=UTF-8''(.+?)(?:;|$)/);
+                    if (fileNameMatch) {
+                        fileName = decodeURIComponent(fileNameMatch[1]);
+                    } else {
+                        // 回退到 filename
+                        const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
+                        if (filenameMatch) {
+                            fileName = decodeURIComponent(filenameMatch[1]);
+                        }
+                    }
+                }
+                
+                // 获取文件内容
+                const blob = await response.blob();
+                
+                // 创建下载链接
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+                
+                showStatus(`✅ 导出成功！文件名: ${fileName}`, false);
+            } catch (error) {
+                showStatus(`❌ ${error.message}`, true);
+                console.error('导出错误:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+

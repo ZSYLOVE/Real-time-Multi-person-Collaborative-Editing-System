@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>库加载测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .test-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        .result.success { background: #d4edda; color: #155724; }
+        .result.error { background: #f8d7da; color: #721c24; }
+        .result.info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 WebSocket库加载测试</h1>
+            <p>诊断SockJS和STOMP库加载状态</p>
+        </div>
+
+        <div class="test-section">
+            <div class="test-header">
+                <h3 class="test-title">🔍 当前库状态</h3>
+            </div>
+            <div id="currentStatus" class="result info">正在检查库状态...</div>
+            <button class="btn btn-primary" onclick="checkLibraries()">重新检查</button>
+        </div>
+
+        <div class="test-section">
+            <div class="test-header">
+                <h3 class="test-title">📥 SockJS库测试</h3>
+                <span class="status" id="sockjsStatus">待测试</span>
+            </div>
+            <button class="btn btn-primary" onclick="testSockJS()">测试SockJS</button>
+            <div id="sockjsResult" class="result info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-header">
+                <h3 class="test-title">📡 STOMP库测试</h3>
+                <span class="status" id="stompStatus">待测试</span>
+            </div>
+            <button class="btn btn-primary" onclick="testSTOMP()">测试STOMP</button>
+            <div id="stompResult" class="result info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-header">
+                <h3 class="test-title">🔄 完整加载测试</h3>
+                <span class="status" id="fullStatus">待测试</span>
+            </div>
+            <button class="btn btn-primary" onclick="testFullLoad()">完整测试</button>
+            <div id="fullResult" class="result info" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 检查当前库状态
+        function checkLibraries() {
+            const status = document.getElementById('currentStatus');
+
+            const checks = [
+                { name: 'SockJS', check: typeof SockJS !== 'undefined', global: 'SockJS' },
+                { name: 'window.SockJS', check: typeof window.SockJS !== 'undefined', global: 'window.SockJS' },
+                { name: 'Stomp', check: typeof Stomp !== 'undefined', global: 'Stomp' },
+                { name: 'window.Stomp', check: typeof window.Stomp !== 'undefined', global: 'window.Stomp' },
+                { name: 'window.stomp', check: typeof window.stomp !== 'undefined', global: 'window.stomp' },
+                { name: 'window.STOMP', check: typeof window.STOMP !== 'undefined', global: 'window.STOMP' }
+            ];
+
+            let result = '📊 库状态检查结果：\n\n';
+            checks.forEach(check => {
+                result += `${check.name}: ${check.check ? '✅ 存在' : '❌ 不存在'} (${check.global})\n`;
+            });
+
+            // 显示全局对象详情
+            result += '\n🔍 全局对象详情：\n';
+            if (typeof SockJS !== 'undefined') {
+                result += `SockJS: ${SockJS.constructor.name}\n`;
+            }
+            if (typeof Stomp !== 'undefined') {
+                result += `Stomp: ${Stomp.constructor.name}\n`;
+                if (Stomp.over) {
+                    result += 'Stomp.over: ✅ 存在\n';
+                }
+            }
+
+            status.textContent = result;
+            status.className = 'result info';
+        }
+
+        // 测试SockJS
+        async function testSockJS() {
+            const status = document.getElementById('sockjsStatus');
+            const result = document.getElementById('sockjsResult');
+
+            status.textContent = '测试中...';
+            status.className = 'status warning';
+
+            try {
+                if (typeof SockJS === 'undefined') {
+                    throw new Error('SockJS未加载');
+                }
+
+                // 尝试创建SockJS实例
+                const socket = new SockJS('http://localhost:8080/ws');
+
+                result.textContent = '✅ SockJS实例创建成功\n' +
+                                   `类型: ${socket.constructor.name}\n` +
+                                   `URL: ${socket.url}\n` +
+                                   `协议: ${socket.protocol || '未知'}`;
+                result.className = 'result success';
+                result.style.display = 'block';
+
+                status.textContent = '成功';
+                status.className = 'status success';
+
+                // 清理
+                socket.close();
+
+            } catch (error) {
+                result.textContent = `❌ SockJS测试失败: ${error.message}`;
+                result.className = 'result error';
+                result.style.display = 'block';
+
+                status.textContent = '失败';
+                status.className = 'status error';
+            }
+        }
+
+        // 测试STOMP
+        async function testSTOMP() {
+            const status = document.getElementById('stompStatus');
+            const result = document.getElementById('stompResult');
+
+            status.textContent = '测试中...';
+            status.className = 'status warning';
+
+            try {
+                // 查找STOMP对象
+                let StompClient = Stomp || window.Stomp || window.stomp || window.STOMP;
+
+                if (!StompClient) {
+                    throw new Error('STOMP对象未找到');
+                }
+
+                result.textContent = '✅ STOMP对象找到\n' +
+                                   `变量名: ${StompClient === Stomp ? 'Stomp' :
+                                             StompClient === window.Stomp ? 'window.Stomp' :
+                                             StompClient === window.stomp ? 'window.stomp' :
+                                             StompClient === window.STOMP ? 'window.STOMP' : '未知'}\n` +
+                                   `类型: ${StompClient.constructor.name}\n` +
+                                   `over方法: ${StompClient.over ? '✅ 存在' : '❌ 不存在'}\n` +
+                                   `connect方法: ${StompClient.connect ? '✅ 存在' : '❌ 不存在'}`;
+                result.className = 'result success';
+                result.style.display = 'block';
+
+                status.textContent = '成功';
+                status.className = 'status success';
+
+            } catch (error) {
+                result.textContent = `❌ STOMP测试失败: ${error.message}`;
+                result.className = 'result error';
+                result.style.display = 'block';
+
+                status.textContent = '失败';
+                status.className = 'status error';
+            }
+        }
+
+        // 完整加载测试
+        async function testFullLoad() {
+            const status = document.getElementById('fullStatus');
+            const result = document.getElementById('fullResult');
+
+            status.textContent = '测试中...';
+            status.className = 'status warning';
+
+            try {
+                let log = '🚀 开始完整库加载测试...\n\n';
+
+                // 步骤1: 加载SockJS
+                log += '📥 步骤1: 加载SockJS...\n';
+                if (typeof SockJS === 'undefined') {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js');
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+                log += `SockJS: ${typeof SockJS !== 'undefined' ? '✅ 成功' : '❌ 失败'}\n`;
+
+                // 步骤2: 加载STOMP
+                log += '\n📡 步骤2: 加载STOMP...\n';
+                if (typeof Stomp === 'undefined') {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js');
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+
+                // 检查所有可能的STOMP变量
+                const stompVars = [Stomp, window.Stomp, window.stomp, window.STOMP];
+                const stompVarNames = ['Stomp', 'window.Stomp', 'window.stomp', 'window.STOMP'];
+                let stompFound = false;
+
+                for (let i = 0; i < stompVars.length; i++) {
+                    if (typeof stompVars[i] !== 'undefined') {
+                        log += `${stompVarNames[i]}: ✅ 找到\n`;
+                        stompFound = true;
+                        break;
+                    }
+                }
+
+                if (!stompFound) {
+                    log += 'STOMP: ❌ 未找到任何STOMP变量\n';
+                    throw new Error('STOMP库加载失败');
+                }
+
+                // 步骤3: 创建连接测试
+                log += '\n🔌 步骤3: 测试连接创建...\n';
+                const socket = new SockJS('http://localhost:8080/ws');
+                let StompClient = Stomp || window.Stomp || window.stomp || window.STOMP;
+                const stompClient = StompClient.over(socket);
+
+                log += 'SockJS实例: ✅ 创建成功\n';
+                log += 'STOMP客户端: ✅ 创建成功\n';
+
+                // 清理
+                socket.close();
+
+                log += '\n🎉 完整测试通过！所有库都正常加载。';
+                result.textContent = log;
+                result.className = 'result success';
+                result.style.display = 'block';
+
+                status.textContent = '成功';
+                status.className = 'status success';
+
+            } catch (error) {
+                let log = `❌ 完整测试失败: ${error.message}\n\n`;
+                log += '🔍 故障排除建议:\n';
+                log += '1. 检查网络连接是否正常\n';
+                log += '2. 确认CDN服务可用\n';
+                log += '3. 检查浏览器控制台错误\n';
+                log += '4. 尝试刷新页面重新加载\n';
+
+                result.textContent = log;
+                result.className = 'result error';
+                result.style.display = 'block';
+
+                status.textContent = '失败';
+                status.className = 'status error';
+            }
+        }
+
+        // 动态加载脚本
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('加载失败: ' + src));
+                document.head.appendChild(script);
+
+                setTimeout(() => reject(new Error('加载超时: ' + src)), 10000);
+            });
+        }
+
+        // 页面加载完成后自动检查
+        window.addEventListener('load', function() {
+            checkLibraries();
+        });
+    </script>
+</body>
+</html>

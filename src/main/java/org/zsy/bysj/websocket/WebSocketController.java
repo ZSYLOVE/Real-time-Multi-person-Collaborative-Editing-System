@@ -30,13 +30,16 @@ public class WebSocketController {
     @MessageMapping("/document/operation")
     public void handleOperation(@Payload WebSocketMessage message,
                                SimpMessageHeaderAccessor headerAccessor) {
+        System.out.println("收到操作消息: " + message.getType() + "，用户ID: " + message.getUserId() + "，文档ID: " + message.getDocumentId());
         // 从JWT token获取用户ID
         Long userId = getUserIdFromToken(headerAccessor);
         if (userId == null) {
+            System.out.println("操作消息认证失败，忽略消息");
             return; // 认证失败，忽略消息
         }
         message.setUserId(userId);
-        
+
+        System.out.println("处理操作消息，用户ID: " + userId);
         collaborationService.handleOperation(message);
     }
 
@@ -63,11 +66,14 @@ public class WebSocketController {
     @MessageMapping("/document/join")
     public void handleJoin(@Payload WebSocketMessage message,
                           SimpMessageHeaderAccessor headerAccessor) {
+        System.out.println("收到JOIN消息: 用户ID " + message.getUserId() + " 加入文档 " + message.getDocumentId());
         Long userId = getUserIdFromToken(headerAccessor);
         if (userId == null) {
+            System.out.println("JOIN消息认证失败");
             return;
         }
-        
+
+        System.out.println("用户 " + userId + " 加入文档 " + message.getDocumentId());
         collaborationService.userJoinDocument(message.getDocumentId(), userId);
     }
 
@@ -90,11 +96,11 @@ public class WebSocketController {
      */
     private Long getUserIdFromToken(SimpMessageHeaderAccessor headerAccessor) {
         try {
-            // 从连接参数中获取token
+            // 从session attributes获取token（由握手拦截器设置）
             Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
             String token = (String) sessionAttributes.get("token");
-            
-            // 如果session中没有token，尝试从连接参数获取
+
+            // 如果session中没有token，尝试从native headers获取
             if (token == null) {
                 List<String> nativeHeaders = headerAccessor.getNativeHeader("Authorization");
                 if (nativeHeaders != null && !nativeHeaders.isEmpty()) {
@@ -104,24 +110,19 @@ public class WebSocketController {
                     }
                 }
             }
-            
-            // 如果还是没有token，尝试从session属性中获取
-            if (token == null) {
-                token = (String) sessionAttributes.get("Authorization");
-                if (token != null && token.startsWith("Bearer ")) {
-                    token = token.substring(7);
-                }
-            }
-            
+
             if (token != null && jwtUtil.validateToken(token)) {
                 Long userId = jwtUtil.getUserIdFromToken(token);
                 // 将userId存入session，供后续使用
                 sessionAttributes.put("userId", userId);
+                System.out.println("WebSocket认证成功，用户ID: " + userId + "，时间戳: " + System.currentTimeMillis());
                 return userId;
             }
-            
+
+            System.out.println("WebSocket认证失败：无法获取有效的token");
             return null;
         } catch (Exception e) {
+            System.out.println("获取用户ID时出错: " + e.getMessage());
             return null;
         }
     }
