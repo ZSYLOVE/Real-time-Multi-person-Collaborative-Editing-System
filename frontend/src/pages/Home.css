@@ -1,0 +1,123 @@
+.home-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* 超大屏幕时增加最大宽度 */
+@media (min-width: 1920px) {
+  .home-container {
+    max-width: 1600px;
+  }
+}
+
+.home-welcome {
+  margin-bottom: 32px;
+  padding: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: #fff;
+}
+
+.dark-theme .home-welcome {
+  background: linear-gradient(135deg, #434343 0%, #2d2d2d 100%);
+}
+
+.home-welcome .ant-typography {
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.home-welcome .ant-typography h2 {
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.home-stats {
+  margin-bottom: 24px;
+}
+
+.home-stats .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.home-stats .ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.dark-theme .home-stats .ant-card {
+  background-color: #1f1f1f;
+  border-color: #303030;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .home-stats .ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.home-actions {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dark-theme .home-actions,
+.dark-theme .home-recent-docs {
+  background-color: #1f1f1f;
+  border-color: #303030;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.home-recent-docs {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.recent-doc-item {
+  padding: 16px;
+  border-radius: 6px;
+  transition: all 0.3s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.recent-doc-item:hover {
+  background-color: #fafafa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .recent-doc-item {
+  border-bottom-color: #303030;
+}
+
+.dark-theme .recent-doc-item:hover {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.recent-doc-item:last-child {
+  border-bottom: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .home-welcome {
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  .home-stats {
+    margin-bottom: 16px;
+  }
+
+  .home-actions {
+    margin-bottom: 16px;
+  }
+
+  .recent-doc-item {
+    padding: 12px;
+  }
+}
+

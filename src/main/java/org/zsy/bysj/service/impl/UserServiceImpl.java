@@ -92,5 +92,57 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setPassword(BCrypt.hashpw(newPassword));
         this.updateById(user);
     }
+
+    @Override
+    public java.util.List<User> searchUsers(String keyword) {
+        QueryWrapper<User> wrapper = new QueryWrapper<>();
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            wrapper.and(w -> w.like("username", keyword)
+                             .or()
+                             .like("email", keyword)
+                             .or()
+                             .like("nickname", keyword));
+        }
+        wrapper.last("LIMIT 20"); // 限制返回20条结果
+        return this.list(wrapper);
+    }
+
+    @Override
+    @Transactional
+    public User updateUserInfo(Long userId, String nickname, String email, String avatar) {
+        // 获取用户信息
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        // 如果更新邮箱，检查邮箱是否已被其他用户使用
+        if (email != null && !email.trim().isEmpty() && !email.equals(user.getEmail())) {
+            QueryWrapper<User> wrapper = new QueryWrapper<>();
+            wrapper.eq("email", email);
+            wrapper.ne("id", userId); // 排除当前用户
+            User existingUser = this.getOne(wrapper);
+            if (existingUser != null) {
+                throw new RuntimeException("邮箱已被其他用户使用");
+            }
+            user.setEmail(email);
+        }
+
+        // 更新昵称
+        if (nickname != null) {
+            user.setNickname(nickname.trim().isEmpty() ? null : nickname.trim());
+        }
+
+        // 更新头像
+        if (avatar != null) {
+            user.setAvatar(avatar.trim().isEmpty() ? null : avatar.trim());
+        }
+
+        // 保存更新
+        this.updateById(user);
+        
+        // 返回更新后的用户信息
+        return this.getById(userId);
+    }
 }
 

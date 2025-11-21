@@ -90,6 +90,29 @@ public class CollaborationServiceImpl implements CollaborationService {
             System.out.println("解析操作数据: " + dataMap);
             OperationDTO opDTO = parseOperationDTO(dataMap);
             System.out.println("转换后的操作DTO: " + opDTO);
+            System.out.println("操作类型检查: type=" + opDTO.getType() + ", equals FORMAT=" + "FORMAT".equals(opDTO.getType()));
+            
+            // FORMAT操作直接广播，不经过OT算法（格式信息在HTML中，不需要文本转换）
+            if ("FORMAT".equals(opDTO.getType()) || "format".equalsIgnoreCase(opDTO.getType())) {
+                System.out.println("检测到FORMAT操作，直接广播");
+                // 获取操作序列号
+                Long sequence = distributedLockService.getNextSequence(documentId);
+                opDTO.setVersion(sequence.intValue());
+                
+                // 构建广播消息
+                WebSocketMessage response = new WebSocketMessage();
+                response.setType("OPERATION");
+                response.setDocumentId(documentId);
+                response.setUserId(userId);
+                response.setTimestamp(System.currentTimeMillis());
+                response.setData(opDTO);
+                
+                // 直接广播FORMAT操作，前端会直接应用格式
+                broadcastToDocument(documentId, response, userId);
+                System.out.println("FORMAT操作广播完成");
+                return;
+            }
+            
             Operation operation = convertToOperation(opDTO);
             System.out.println("转换后的Operation: type=" + operation.getType() + ", data=" + operation.getData() + ", position=" + operation.getPosition());
 
@@ -99,26 +122,21 @@ public class CollaborationServiceImpl implements CollaborationService {
             System.out.println("获取操作序列号: " + sequence);
 
             // 应用操作到文档
-            System.out.println("开始应用操作到文档...");
             Document document = documentService.applyOperation(documentId, operation, userId);
-            System.out.println("操作应用成功，文档版本: " + document.getVersion());
 
-            // 构建响应消息
+            // 构建广播消息 - 使用 OPERATION 类型，包含操作数据
             WebSocketMessage response = new WebSocketMessage();
-            response.setType("OPERATION_APPLIED");
+            response.setType("OPERATION");
             response.setDocumentId(documentId);
             response.setUserId(userId);
             response.setTimestamp(System.currentTimeMillis());
 
-            Map<String, Object> responseData = new HashMap<>();
-            responseData.put("version", document.getVersion());
-            responseData.put("sequence", sequence);
-            responseData.put("content", document.getContent());
-            response.setData(responseData);
+            // 将操作DTO作为data发送，这样其他客户端可以直接应用操作
+            response.setData(opDTO);
 
             System.out.println("构建响应消息完成，开始广播...");
 
-            // 广播给文档的所有用户（除了发送者）
+            // 广播给文档的所有用户（排除发送者，因为发送者已经应用了操作）
             broadcastToDocument(documentId, response, userId);
             System.out.println("消息广播完成");
         } catch (Exception e) {
@@ -166,7 +184,7 @@ public class CollaborationServiceImpl implements CollaborationService {
         
         // 构建光标消息
         WebSocketMessage message = new WebSocketMessage();
-        message.setType("CURSOR_MOVE");
+        message.setType("CURSOR");
         message.setDocumentId(documentId);
         message.setUserId(userId);
         message.setTimestamp(System.currentTimeMillis());
@@ -233,7 +251,7 @@ public class CollaborationServiceImpl implements CollaborationService {
         
         // 通知其他用户
         WebSocketMessage message = new WebSocketMessage();
-        message.setType("USER_JOINED");
+        message.setType("JOIN");
         message.setDocumentId(documentId);
         message.setUserId(userId);
         message.setTimestamp(System.currentTimeMillis());
@@ -285,7 +303,7 @@ public class CollaborationServiceImpl implements CollaborationService {
         
         // 通知其他用户
         WebSocketMessage message = new WebSocketMessage();
-        message.setType("USER_LEFT");
+        message.setType("LEAVE");
         message.setDocumentId(documentId);
         message.setUserId(userId);
         message.setTimestamp(System.currentTimeMillis());
@@ -303,7 +321,13 @@ public class CollaborationServiceImpl implements CollaborationService {
      */
     private void broadcastToDocument(Long documentId, WebSocketMessage message, Long excludeUserId) {
         String destination = "/topic/document/" + documentId;
+        System.out.println("广播消息到: " + destination);
+        System.out.println("消息类型: " + message.getType());
+        System.out.println("消息用户ID: " + message.getUserId());
+        System.out.println("排除用户ID: " + excludeUserId);
+        System.out.println("消息数据: " + message.getData());
         messagingTemplate.convertAndSend(destination, message);
+        System.out.println("消息广播完成");
     }
 
     /**
@@ -342,6 +366,10 @@ public class CollaborationServiceImpl implements CollaborationService {
             case "DELETE":
                 return Operation.delete(opDTO.getPosition(), opDTO.getLength());
             case "RETAIN":
+                return Operation.retain(opDTO.getPosition(), opDTO.getLength());
+            case "FORMAT":
+                // FORMAT操作不改变文本内容，只改变格式，直接返回RETAIN操作
+                // 格式信息会通过OperationDTO传递，前端会直接应用格式
                 return Operation.retain(opDTO.getPosition(), opDTO.getLength());
             default:
                 throw new IllegalArgumentException("未知的操作类型: " + opDTO.getType());

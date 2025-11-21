@@ -4,7 +4,7 @@
 
 这是一个**完全实现**的基于 Spring Boot 的实时多人协同编辑系统，类似于 Google Docs。系统采用工业级的 OT（操作转换）算法，支持多人在线实时编辑文档，具有完整的操作冲突检测与自动解决、离线编辑同步、权限管理系统等企业级功能。
 
-**🚀 项目状态：后端核心功能 100% 完成，前端测试界面完整可用**
+**🚀 项目状态：后端核心功能 100% 完成，前端React应用 100% 完成**
 
 ## 🏆 核心技术亮点
 
@@ -33,11 +33,19 @@
 - **OT算法** - 数学证明的操作转换算法
 - **iTextPDF + Apache POI** - 文档导出引擎
 
-### 前端测试界面 (完整可用)
+### 前端 (100% 完成)
+- **React 18 + TypeScript** - 现代化前端框架
+- **Vite 5** - 快速构建工具
+- **Quill.js** - 富文本编辑器
+- **Ant Design 5** - 企业级UI组件库
+- **Zustand** - 轻量级状态管理
+- **SockJS + STOMP.js** - WebSocket实时通信
+- **响应式设计** - 支持桌面端和移动端
+
+### 前端测试界面 (保留用于测试)
 - **原生HTML/CSS/JavaScript** - 跨平台测试界面
 - **WebSocket客户端** - SockJS + STOMP.js
 - **Material Design** - 现代化UI组件
-- **响应式设计** - 支持桌面端和移动端
 
 ## ✨ 核心功能 (全部实现)
 
@@ -255,6 +263,14 @@ offline_operations:123:456 → List<OperationDTO>
 ```
 
 ## 📁 项目结构
+
+**注意**：本项目采用前后端分离架构，前后端代码在同一仓库中。
+
+- **后端代码**: `src/main/java/` - Spring Boot应用
+- **前端代码**: `frontend/` - React应用
+- **测试页面**: `src/main/resources/static/` - HTML测试页面
+
+详细结构说明请参考：[PROJECT_STRUCTURE_COMPLETE.md](PROJECT_STRUCTURE_COMPLETE.md)
 
 ```
 bysj/

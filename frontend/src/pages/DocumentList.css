@@ -1,0 +1,33 @@
+.document-list-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* 超大屏幕时增加最大宽度 */
+@media (min-width: 1920px) {
+  .document-list-container {
+    max-width: 1600px;
+  }
+}
+
+.document-list-container h1 {
+  margin-bottom: 24px;
+  font-size: 24px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.dark-theme .document-list-container .ant-card {
+  background-color: #1f1f1f;
+  border-color: #303030;
+}
+
+.dark-theme .document-list-container .ant-list-item {
+  border-bottom-color: #303030;
+}
+
+.dark-theme .document-list-container .ant-list-item:hover {
+  background-color: #2a2a2a;
+}
+

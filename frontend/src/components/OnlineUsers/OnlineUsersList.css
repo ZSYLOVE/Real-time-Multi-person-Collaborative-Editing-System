@@ -1,0 +1,47 @@
+.online-users-list {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.online-users-header {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.online-users-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 夜间模式样式 */
+.dark-theme .online-users-list {
+  background: #1f1f1f;
+  border-color: #303030;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .online-users-header {
+  border-bottom-color: #303030;
+}
+
+.dark-theme .online-users-header h3 {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .online-users-list .ant-list-item {
+  border-bottom-color: #303030;
+}
+
+.dark-theme .online-users-list .ant-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-theme .online-users-list .ant-list-item-meta-title {
+  color: rgba(255, 255, 255, 0.85);
+}
+

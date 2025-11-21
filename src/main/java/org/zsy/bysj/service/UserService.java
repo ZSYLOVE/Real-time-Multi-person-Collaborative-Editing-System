@@ -27,5 +27,15 @@ public interface UserService extends IService<User> {
      * 修改密码
      */
     void changePassword(Long userId, String oldPassword, String newPassword);
+    
+    /**
+     * 搜索用户（根据用户名或邮箱）
+     */
+    java.util.List<User> searchUsers(String keyword);
+    
+    /**
+     * 更新用户信息
+     */
+    User updateUserInfo(Long userId, String nickname, String email, String avatar);
 }
 

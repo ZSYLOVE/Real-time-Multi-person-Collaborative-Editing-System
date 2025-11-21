@@ -1,0 +1,27 @@
+.share-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.add-permission-section {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.add-permission-section h3,
+.permissions-list-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.search-results {
+  margin-top: 8px;
+}
+
+.permissions-list-section {
+  max-height: 400px;
+  overflow-y: auto;
+}
+

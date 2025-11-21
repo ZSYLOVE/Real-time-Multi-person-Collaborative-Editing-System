@@ -6,11 +6,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.zsy.bysj.annotation.RequirePermission;
 import org.zsy.bysj.dto.Result;
+import org.zsy.bysj.dto.WebSocketMessage;
 import org.zsy.bysj.model.Document;
 import org.zsy.bysj.algorithm.Operation;
+import org.zsy.bysj.service.CollaborationService;
 import org.zsy.bysj.service.DocumentService;
 import org.zsy.bysj.util.RequestUtil;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +26,9 @@ public class DocumentController {
 
     @Autowired
     private DocumentService documentService;
+
+    @Autowired
+    private CollaborationService collaborationService;
 
     /**
      * 创建文档
@@ -46,6 +52,24 @@ public class DocumentController {
     }
 
     /**
+     * 获取用户的所有文档（创建的）
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Result<List<Document>>> getUserDocuments(@PathVariable Long userId) {
+        List<Document> documents = documentService.getUserDocuments(userId);
+        return ResponseEntity.ok(Result.success(documents));
+    }
+
+    /**
+     * 获取用户被共享的文档
+     */
+    @GetMapping("/shared/{userId}")
+    public ResponseEntity<Result<List<Document>>> getSharedDocuments(@PathVariable Long userId) {
+        List<Document> documents = documentService.getSharedDocuments(userId);
+        return ResponseEntity.ok(Result.success(documents));
+    }
+
+    /**
      * 获取文档
      */
     @RequirePermission("READ")
@@ -56,15 +80,6 @@ public class DocumentController {
             return ResponseEntity.ok(Result.success(document));
         }
         return ResponseEntity.badRequest().body(Result.error("文档不存在"));
-    }
-
-    /**
-     * 获取用户的所有文档
-     */
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<Result<List<Document>>> getUserDocuments(@PathVariable Long userId) {
-        List<Document> documents = documentService.getUserDocuments(userId);
-        return ResponseEntity.ok(Result.success(documents));
     }
 
     /**
@@ -88,8 +103,22 @@ public class DocumentController {
                 return ResponseEntity.badRequest().body(Result.error("文档不存在"));
             }
             
-            documentService.updateDocumentContent(id, content, document.getVersion());
-            Document updatedDocument = documentService.getDocumentById(id);
+            // 使用带快照的方法更新文档（保存时创建快照）
+            Document updatedDocument = ((org.zsy.bysj.service.impl.DocumentServiceImpl) documentService)
+                    .updateDocumentContentWithSnapshot(id, content, document.getVersion());
+            
+            // 广播文档更新消息给所有在线用户
+            WebSocketMessage updateMessage = new WebSocketMessage();
+            updateMessage.setType("DOCUMENT_UPDATED");
+            updateMessage.setDocumentId(id);
+            updateMessage.setUserId(userId);
+            updateMessage.setTimestamp(System.currentTimeMillis());
+            Map<String, Object> updateData = new HashMap<>();
+            updateData.put("content", updatedDocument.getContent());
+            updateData.put("version", updatedDocument.getVersion());
+            updateMessage.setData(updateData);
+            collaborationService.broadcastToDocument(id, updateMessage);
+            
             return ResponseEntity.ok(Result.success("文档内容更新成功", updatedDocument));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Result.error(e.getMessage()));

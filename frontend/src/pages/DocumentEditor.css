@@ -1,0 +1,205 @@
+.document-editor-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.document-editor-header {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.document-editor-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.document-editor-header .header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.document-editor-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.document-editor-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  background: #f0f2f5;
+  min-height: calc(100vh - 64px);
+}
+
+/* 响应式布局容器 */
+.editor-layout-container {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  grid-template-rows: auto;
+  gap: 16px;
+  width: 100%;
+  align-items: stretch;
+}
+
+/* 主编辑区域 */
+.editor-main-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* 编辑器包装器 */
+.editor-wrapper {
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 评论面板包装器 - 紧挨着编辑器 */
+.comment-wrapper {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 侧边栏区域 - 高度跟随主编辑区域（编辑器+评论区） */
+.editor-sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: stretch;
+  align-self: stretch;
+}
+
+/* 在线用户列表 */
+.online-users-wrapper {
+  flex: 0 0 auto;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 版本历史 - 高度与评论面板一致（从头部到评论列表底部），内部可滚动 */
+.version-history-wrapper {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 响应式布局 - 平板 */
+@media (max-width: 1200px) {
+  .editor-layout-container {
+    grid-template-columns: 1fr 240px;
+  }
+}
+
+/* 响应式布局 - 小屏幕 */
+@media (max-width: 992px) {
+  .editor-layout-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 12px;
+  }
+  
+  .editor-sidebar-section {
+    position: static;
+    max-height: none;
+    flex-direction: row;
+    gap: 12px;
+  }
+  
+  .online-users-wrapper {
+    flex: 1 1 50%;
+    min-height: 200px;
+  }
+  
+  .version-history-wrapper {
+    flex: 1 1 50%;
+    min-height: 200px;
+  }
+}
+
+/* 响应式布局 - 移动设备 */
+@media (max-width: 768px) {
+  .document-editor-content {
+    padding: 12px;
+  }
+  
+  .editor-layout-container {
+    gap: 12px;
+  }
+  
+  .editor-main-section {
+    gap: 12px;
+  }
+  
+  .editor-wrapper {
+    min-height: 400px;
+  }
+  
+  .comment-wrapper {
+    min-height: 250px;
+  }
+  
+  .editor-sidebar-section {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .online-users-wrapper {
+    min-height: 180px;
+  }
+  
+  .version-history-wrapper {
+    min-height: 180px;
+  }
+}
+
+/* 夜间模式样式 */
+.dark-theme .document-editor-header {
+  background: #1f1f1f;
+  border-bottom: 1px solid #303030;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .document-editor-header h2 {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .document-editor-content {
+  background: #141414;
+}
+
+.dark-theme .document-editor-header .header-right .ant-btn {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: #434343;
+}
+
+.dark-theme .document-editor-header .header-right .ant-btn:hover {
+  background: #2a2a2a;
+  border-color: #1890ff;
+  color: #fff;
+}
+
+.dark-theme .editor-layout-container {
+  color: rgba(255, 255, 255, 0.85);
+}
+

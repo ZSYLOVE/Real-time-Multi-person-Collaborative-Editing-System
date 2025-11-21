@@ -18,6 +18,7 @@ import org.zsy.bysj.service.OfflineSyncService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.springframework.dao.DeadlockLoserDataAccessException;
 
 /**
  * 离线同步服务实现类
@@ -37,8 +38,12 @@ public class OfflineSyncServiceImpl implements OfflineSyncService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private org.zsy.bysj.service.DistributedLockService distributedLockService;
+
     private static final int OFFLINE_OPERATIONS_TTL_HOURS = 48; // 离线操作保留48小时
     private static final int OFFLINE_STATUS_TTL_MINUTES = 5; // 离线状态标记5分钟
+    private static final int SYNC_LOCK_TIMEOUT_MS = 5000; // 同步锁超时时间5秒
 
     @Override
     public void saveOfflineOperation(Long documentId, Long userId, OperationDTO operation) {
@@ -113,43 +118,88 @@ public class OfflineSyncServiceImpl implements OfflineSyncService {
             return new ArrayList<>();
         }
         
-        // 获取当前文档版本
-        Document document = documentService.getDocumentById(documentId);
-        if (document == null) {
-            clearOfflineOperations(documentId, userId);
+        // 使用分布式锁保护同步过程，避免与其他操作冲突
+        boolean lockAcquired = distributedLockService.tryDocumentLockWithQueue(
+            documentId, userId, SYNC_LOCK_TIMEOUT_MS
+        );
+        
+        if (!lockAcquired) {
+            System.err.println("获取同步锁失败，延迟同步离线操作");
+            // 锁获取失败，返回空列表，稍后重试
             return new ArrayList<>();
         }
         
-        // 获取用户离线时的版本（从最后一个离线操作中获取，或从Redis中获取）
-        Integer offlineVersion = getOfflineVersion(documentId, userId);
-        Integer currentVersion = document.getVersion();
-        
-        // 如果版本不一致，说明有冲突，需要解决
-        if (offlineVersion != null && !offlineVersion.equals(currentVersion)) {
-        // 解决冲突
-        offlineOps = resolveOfflineConflicts(documentId, userId, offlineOps, currentVersion);
-        }
-        
-        // 应用离线操作
-        List<OperationDTO> syncedOps = new ArrayList<>();
-        for (OperationDTO opDTO : offlineOps) {
-            try {
-                Operation operation = convertToOperation(opDTO);
-                documentService.applyOperation(documentId, operation, userId);
-                syncedOps.add(opDTO);
-            } catch (Exception e) {
-                // 操作失败，记录日志但继续处理其他操作
-                System.err.println("同步离线操作失败: " + e.getMessage());
+        try {
+            // 获取当前文档版本
+            Document document = documentService.getDocumentById(documentId);
+            if (document == null) {
+                clearOfflineOperations(documentId, userId);
+                return new ArrayList<>();
             }
+            
+            // 获取用户离线时的版本（从最后一个离线操作中获取，或从Redis中获取）
+            Integer offlineVersion = getOfflineVersion(documentId, userId);
+            Integer currentVersion = document.getVersion();
+            
+            // 如果版本不一致，说明有冲突，需要解决
+            if (offlineVersion != null && !offlineVersion.equals(currentVersion)) {
+                // 解决冲突
+                offlineOps = resolveOfflineConflicts(documentId, userId, offlineOps, currentVersion);
+            }
+            
+            // 应用离线操作（带死锁重试机制）
+            List<OperationDTO> syncedOps = new ArrayList<>();
+            for (OperationDTO opDTO : offlineOps) {
+                boolean success = false;
+                int maxRetries = 3;
+                int retryCount = 0;
+                
+                while (!success && retryCount < maxRetries) {
+                    try {
+                        Operation operation = convertToOperation(opDTO);
+                        documentService.applyOperation(documentId, operation, userId);
+                        syncedOps.add(opDTO);
+                        success = true;
+                    } catch (Exception e) {
+                        // 检查是否是死锁异常
+                        boolean isDeadlock = e instanceof DeadlockLoserDataAccessException ||
+                                           (e.getCause() instanceof DeadlockLoserDataAccessException) ||
+                                           (e.getMessage() != null && e.getMessage().contains("Deadlock"));
+                        
+                        if (isDeadlock && retryCount < maxRetries - 1) {
+                            // 死锁异常，等待后重试（指数退避）
+                            retryCount++;
+                            long waitTime = (long) Math.pow(2, retryCount) * 50; // 100ms, 200ms, 400ms
+                            System.out.println("检测到死锁，等待 " + waitTime + "ms 后重试 (第 " + retryCount + " 次)");
+                            try {
+                                Thread.sleep(waitTime);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
+                        } else {
+                            // 非死锁异常或重试次数用完，记录日志并跳过该操作
+                            System.err.println("同步离线操作失败: " + e.getMessage());
+                            if (isDeadlock) {
+                                System.err.println("死锁重试次数已用完，跳过该操作");
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 清除离线操作队列
+            clearOfflineOperations(documentId, userId);
+            
+            // 标记用户为在线
+            markUserOnline(documentId, userId);
+            
+            return syncedOps;
+        } finally {
+            // 释放分布式锁
+            distributedLockService.releaseDocumentLock(documentId, userId);
         }
-        
-        // 清除离线操作队列
-        clearOfflineOperations(documentId, userId);
-        
-        // 标记用户为在线
-        markUserOnline(documentId, userId);
-        
-        return syncedOps;
     }
 
     @Override

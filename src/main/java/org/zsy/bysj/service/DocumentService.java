@@ -37,9 +37,14 @@ public interface DocumentService {
     List<DocumentOperation> getDocumentOperations(Long documentId, Integer fromVersion);
     
     /**
-     * 获取用户的所有文档
+     * 获取用户的所有文档（创建的）
      */
     List<Document> getUserDocuments(Long userId);
+    
+    /**
+     * 获取用户被共享的文档
+     */
+    List<Document> getSharedDocuments(Long userId);
     
     /**
      * 删除文档

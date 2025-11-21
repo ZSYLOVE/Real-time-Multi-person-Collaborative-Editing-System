@@ -1,0 +1,260 @@
+.collaborative-editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-toolbar {
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.editor-toolbar .version-info {
+  color: #666;
+  font-size: 14px;
+  margin-left: 16px;
+}
+
+.collaborative-editor .ql-container {
+  flex: 1;
+  font-size: 16px;
+  height: auto;
+  min-height: 500px;
+}
+
+.collaborative-editor .ql-editor {
+  min-height: 500px;
+  padding: 20px;
+}
+
+.cursor-indicators {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: visible;
+}
+
+.cursor-indicator {
+  position: absolute;
+  width: 2px;
+  height: 20px;
+  border-left: 2px solid;
+  animation: blink 1s infinite;
+  transform: translateY(0);
+}
+
+.cursor-indicator .cursor-label {
+  position: absolute;
+  top: -20px;
+  left: -2px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: white;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0.3;
+  }
+}
+
+.comment-markers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9;
+  overflow: visible;
+}
+
+.comment-marker-indicator {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.comment-marker-icon {
+  font-size: 16px;
+  background: #1890ff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.comment-marker-label {
+  background: rgba(24, 144, 255, 0.9);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.comment-marker {
+  background: rgba(24, 144, 255, 0.1);
+  border-bottom: 2px solid #1890ff;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+/* 夜间模式样式 */
+.dark-theme .editor-toolbar {
+  background: #1f1f1f;
+  border-bottom: 1px solid #303030;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .editor-toolbar .version-info {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.dark-theme .collaborative-editor .ql-container {
+  background: #1f1f1f;
+  color: rgba(255, 255, 255, 0.85);
+  border-color: #303030;
+}
+
+.dark-theme .collaborative-editor .ql-editor {
+  background: #1f1f1f;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .collaborative-editor .ql-editor.ql-blank::before {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Quill 工具栏夜间模式 */
+.dark-theme .ql-toolbar.ql-snow {
+  background: #1f1f1f;
+  border-color: #303030;
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-stroke {
+  stroke: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-fill {
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-toolbar.ql-snow button:hover,
+.dark-theme .ql-toolbar.ql-snow button:focus,
+.dark-theme .ql-toolbar.ql-snow button.ql-active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-picker-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-picker-options {
+  background: #1f1f1f;
+  border-color: #303030;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-picker-item {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-picker-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label {
+  border-color: #303030;
+}
+
+.dark-theme .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-options {
+  border-color: #303030;
+}
+
+/* Quill 编辑器容器夜间模式 */
+.dark-theme .ql-container.ql-snow {
+  background: #1f1f1f;
+  border-color: #303030;
+}
+
+/* Quill 编辑器内容区域夜间模式 */
+.dark-theme .ql-snow .ql-editor {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-snow .ql-editor pre.ql-syntax {
+  background-color: #2a2a2a;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-snow .ql-editor blockquote {
+  border-left-color: #303030;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.dark-theme .ql-snow .ql-editor code,
+.dark-theme .ql-snow .ql-editor pre {
+  background-color: #2a2a2a;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-snow .ql-editor a {
+  color: #1890ff;
+}
+
+.dark-theme .ql-snow .ql-editor strong {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.dark-theme .ql-snow .ql-editor em {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 光标指示器夜间模式 */
+.dark-theme .cursor-indicator .cursor-label {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 评论标记夜间模式 */
+.dark-theme .comment-marker-icon {
+  background: #1890ff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .comment-marker-label {
+  background: rgba(24, 144, 255, 0.95);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .comment-marker {
+  background: rgba(24, 144, 255, 0.2);
+  border-bottom-color: #1890ff;
+}
+

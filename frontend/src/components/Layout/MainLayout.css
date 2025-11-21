@@ -1,0 +1,297 @@
+.main-layout {
+  min-height: 100vh;
+}
+
+.main-layout-sider {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+}
+
+.logo {
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: transparent;
+  margin: 16px;
+  border-radius: 0;
+  transition: all 0.3s;
+  box-sizing: border-box;
+}
+
+.logo-icon {
+  font-size: 24px;
+  text-align: center;
+}
+
+.logo-text {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.react-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: breathe 2.5s ease-in-out infinite;
+}
+
+.react-icon svg {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 0 3px rgba(97, 218, 251, 0.5));
+}
+
+@keyframes breathe {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+/* 夜间模式下的React图标 */
+.dark-theme .react-icon svg {
+  filter: drop-shadow(0 0 4px rgba(97, 218, 251, 0.6));
+}
+
+.main-layout-content {
+  margin-left: 200px;
+  transition: margin-left 0.2s;
+}
+
+.main-layout-content.collapsed {
+  margin-left: 80px;
+}
+
+.main-layout-header {
+  background: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 99;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.trigger-btn {
+  font-size: 18px;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.trigger-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.welcome-text {
+  color: #666;
+  font-size: 14px;
+}
+
+.theme-toggle-btn {
+  font-size: 18px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.theme-toggle-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.dark-theme .theme-toggle-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.main-layout-body {
+  margin: 16px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+  min-height: calc(100vh - 112px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* 大屏幕时减少边距 */
+@media (min-width: 1400px) {
+  .main-layout-body {
+    margin: 16px 32px;
+    padding: 32px;
+  }
+}
+
+/* 超大屏幕优化 */
+@media (min-width: 1920px) {
+  .main-layout-body {
+    margin: 16px 48px;
+    padding: 40px;
+  }
+}
+
+/* 侧边栏折叠时的样式 */
+.main-layout-sider.ant-layout-sider-collapsed {
+  width: 80px !important;
+}
+
+.main-layout-sider.ant-layout-sider-collapsed+.main-layout-content {
+  margin-left: 80px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .main-layout-sider {
+    position: fixed;
+    z-index: 1000;
+    height: 100vh;
+  }
+
+  .main-layout-content {
+    margin-left: 0;
+  }
+
+  .main-layout-sider.ant-layout-sider-collapsed {
+    transform: translateX(-100%);
+  }
+
+  .main-layout-body {
+    margin: 16px;
+    padding: 16px;
+  }
+}
+
+/* 菜单容器样式 */
+.menu-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
+  height: calc(100vh - 96px); /* 减去logo的高度(64px + 上下margin 32px) */
+  max-height: calc(100vh - 96px);
+}
+
+.main-menu {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding-bottom: 70px;
+  /* 为退出按钮留出空间 */
+}
+
+/* 退出按钮容器 - 固定在侧边栏最底部 */
+.logout-menu-item {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 0;
+  background: #001529;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.logout-menu {
+  border: none;
+  background: transparent !important;
+}
+
+.logout-menu .ant-menu-item {
+  margin: 0 8px;
+  border-radius: 6px;
+  height: 48px;
+  line-height: 48px;
+}
+
+.logout-menu .ant-menu-item-divider {
+  margin: 0 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 菜单项样式优化 */
+.main-layout-sider .ant-menu-item {
+  margin: 8px 0;
+  border-radius: 6px;
+  height: 48px;
+  line-height: 48px;
+}
+
+.main-layout-sider .ant-menu-item-selected {
+  background-color: #1890ff !important;
+}
+
+.main-layout-sider .ant-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 退出按钮样式 */
+.main-layout-sider .ant-menu-item-danger {
+  margin-top: auto;
+}
+
+/* 菜单滚动条样式 */
+.main-menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.main-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.main-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

@@ -14,6 +14,7 @@ import org.zsy.bysj.mapper.DocumentVersionMapper;
 import org.zsy.bysj.model.Document;
 import org.zsy.bysj.model.DocumentOperation;
 import org.zsy.bysj.model.DocumentVersion;
+import org.zsy.bysj.model.DocumentPermission;
 import org.zsy.bysj.service.DocumentService;
 import org.zsy.bysj.service.PermissionService;
 import org.zsy.bysj.constant.RedisKeyConstant;
@@ -106,30 +107,48 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional
     public void updateDocumentContent(Long documentId, String content, Integer version) {
-        // 创建当前版本的快照（在更新前保存）
-        Document currentDocument = documentMapper.selectById(documentId);
-        if (currentDocument != null && currentDocument.getVersion() > 0) {
-            try {
-                createVersionSnapshot(documentId, currentDocument.getVersion());
-            } catch (Exception e) {
-                // 快照创建失败不影响主流程，记录日志即可
-                System.err.println("创建版本快照失败: " + e.getMessage());
-            }
-        }
-        
-        // 使用MyBatis Plus的UpdateWrapper更新
+        // 先更新文档内容（添加版本检查，避免并发更新冲突）
         UpdateWrapper<Document> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", documentId)
+                     .eq("version", version) // 添加版本检查，避免并发更新冲突
                      .set("content", content)
                      .set("version", version + 1)
                      .set("updated_at", LocalDateTime.now());
-        documentMapper.update(null, updateWrapper);
+        int updateCount = documentMapper.update(null, updateWrapper);
+        
+        // 检查更新是否成功（版本号匹配）
+        if (updateCount == 0) {
+            throw new RuntimeException("文档版本已变更，更新失败，请重试");
+        }
+        
+        // 注意：快照创建已移除，只在保存时创建快照（见 DocumentController.updateDocumentContent）
         
         // 更新缓存
         Document document = documentMapper.selectById(documentId);
         if (document != null) {
             cacheDocument(document);
         }
+    }
+    
+    /**
+     * 更新文档内容并创建快照（用于保存操作）
+     */
+    @Transactional
+    public Document updateDocumentContentWithSnapshot(Long documentId, String content, Integer version) {
+        // 先更新文档内容
+        updateDocumentContent(documentId, content, version);
+        
+        // 创建当前版本的快照（使用更新前的版本号）
+        if (version > 0) {
+            try {
+                createVersionSnapshot(documentId, version);
+            } catch (Exception e) {
+                // 快照创建失败不影响主流程，记录日志即可
+            }
+        }
+        
+        // 返回更新后的文档
+        return getDocumentById(documentId);
     }
 
     @Override
@@ -188,6 +207,33 @@ public class DocumentServiceImpl implements DocumentService {
     public List<Document> getUserDocuments(Long userId) {
         QueryWrapper<Document> wrapper = new QueryWrapper<>();
         wrapper.eq("creator_id", userId)
+               .eq("is_deleted", 0)
+               .orderByDesc("updated_at");
+        return documentMapper.selectList(wrapper);
+    }
+
+    @Override
+    public List<Document> getSharedDocuments(Long userId) {
+        // 获取用户的所有权限记录
+        List<org.zsy.bysj.model.DocumentPermission> permissions = permissionService.getUserPermissions(userId);
+        if (permissions == null || permissions.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        
+        // 提取文档ID列表
+        List<Long> documentIds = permissions.stream()
+            .map(org.zsy.bysj.model.DocumentPermission::getDocumentId)
+            .distinct()
+            .collect(java.util.stream.Collectors.toList());
+        
+        if (documentIds.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        
+        // 查询这些文档（排除已删除的）
+        QueryWrapper<Document> wrapper = new QueryWrapper<>();
+        wrapper.in("id", documentIds)
+               .eq("is_deleted", 0)
                .orderByDesc("updated_at");
         return documentMapper.selectList(wrapper);
     }
@@ -214,17 +260,37 @@ public class DocumentServiceImpl implements DocumentService {
             throw new RuntimeException("文档不存在");
         }
 
-        // 检查该版本是否已存在快照
+        // 检查该版本是否已存在快照（可能有重复记录）
         QueryWrapper<DocumentVersion> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("document_id", documentId)
-                   .eq("version", version);
-        DocumentVersion existing = documentVersionMapper.selectOne(queryWrapper);
+                   .eq("version", version)
+                   .orderByDesc("created_at"); // 按创建时间降序，最新的在前
+        List<DocumentVersion> existingList = documentVersionMapper.selectList(queryWrapper);
 
-        if (existing != null) {
-            // 版本快照已存在，更新即可
-            existing.setContent(document.getContent());
-            existing.setSnapshot(buildSnapshot(document));
-            documentVersionMapper.updateById(existing);
+        if (existingList != null && !existingList.isEmpty()) {
+            // 如果存在多条记录，先删除所有旧记录
+            if (existingList.size() > 1) {
+                List<Long> idsToDelete = existingList.stream()
+                    .map(DocumentVersion::getId)
+                    .collect(java.util.stream.Collectors.toList());
+                documentVersionMapper.deleteBatchIds(idsToDelete);
+                
+                // 创建新的快照
+                DocumentVersion documentVersion = new DocumentVersion();
+                documentVersion.setDocumentId(documentId);
+                documentVersion.setVersion(version);
+                documentVersion.setContent(document.getContent());
+                documentVersion.setSnapshot(buildSnapshot(document));
+                documentVersion.setCreatedBy(document.getCreatorId());
+                documentVersion.setCreatedAt(LocalDateTime.now());
+                documentVersionMapper.insert(documentVersion);
+            } else {
+                // 只有一条记录，更新即可
+                DocumentVersion existing = existingList.get(0);
+                existing.setContent(document.getContent());
+                existing.setSnapshot(buildSnapshot(document));
+                documentVersionMapper.updateById(existing);
+            }
         } else {
             // 创建新的版本快照
             DocumentVersion documentVersion = new DocumentVersion();
@@ -279,8 +345,11 @@ public class DocumentServiceImpl implements DocumentService {
     public DocumentVersion getVersionSnapshot(Long documentId, Integer version) {
         QueryWrapper<DocumentVersion> wrapper = new QueryWrapper<>();
         wrapper.eq("document_id", documentId)
-               .eq("version", version);
-        return documentVersionMapper.selectOne(wrapper);
+               .eq("version", version)
+               .orderByDesc("created_at") // 按创建时间降序，获取最新的
+               .last("LIMIT 1"); // 只取第一条
+        List<DocumentVersion> list = documentVersionMapper.selectList(wrapper);
+        return list != null && !list.isEmpty() ? list.get(0) : null;
     }
 
     @Override

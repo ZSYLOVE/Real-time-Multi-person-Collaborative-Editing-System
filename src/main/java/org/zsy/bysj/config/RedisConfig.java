@@ -48,5 +48,13 @@ public class RedisConfig {
         System.out.println("=== RedisTemplate configured with ObjectMapper that has JavaTimeModule and type information ===");
         return template;
     }
+
+    /**
+     * 配置StringRedisTemplate（用于简单的字符串操作，如验证码）
+     */
+    @Bean
+    public org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate(org.springframework.data.redis.connection.RedisConnectionFactory connectionFactory) {
+        return new org.springframework.data.redis.core.StringRedisTemplate(connectionFactory);
+    }
 }
 
