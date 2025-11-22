@@ -13,6 +13,8 @@ import org.zsy.bysj.service.CollaborationService;
 import org.zsy.bysj.service.DistributedLockService;
 import org.zsy.bysj.service.DocumentService;
 import org.zsy.bysj.service.OfflineSyncService;
+import org.zsy.bysj.service.UserService;
+import org.zsy.bysj.model.User;
 import org.zsy.bysj.constant.RedisKeyConstant;
 
 import java.util.*;
@@ -32,6 +34,9 @@ public class CollaborationServiceImpl implements CollaborationService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private UserService userService;
 
     @Autowired
     private org.zsy.bysj.service.DistributedLockService distributedLockService;
@@ -202,10 +207,20 @@ public class CollaborationServiceImpl implements CollaborationService {
         String key = RedisKeyConstant.buildOnlineUsersKey(documentId);
         Set<Object> userIds = redisTemplate.opsForSet().members(key);
         
+        System.out.println("获取在线用户列表，文档ID: " + documentId);
+        System.out.println("Redis中的用户ID集合: " + userIds);
+        
         List<Map<String, Object>> users = new ArrayList<>();
-        if (userIds != null) {
+        if (userIds != null && !userIds.isEmpty()) {
             for (Object userIdObj : userIds) {
                 Long userId = Long.valueOf(userIdObj.toString());
+                
+                // 获取用户详细信息
+                User user = userService.getById(userId);
+                if (user == null) {
+                    System.out.println("用户不存在，跳过: " + userId);
+                    continue; // 用户不存在，跳过
+                }
                 
                 // 获取用户光标位置
                 String cursorKey = RedisKeyConstant.buildUserCursorKey(documentId, userId);
@@ -213,11 +228,19 @@ public class CollaborationServiceImpl implements CollaborationService {
                 
                 Map<String, Object> userInfo = new HashMap<>();
                 userInfo.put("userId", userId);
+                userInfo.put("username", user.getUsername());
+                userInfo.put("nickname", user.getNickname());
+                userInfo.put("avatar", user.getAvatar());
                 userInfo.put("position", position != null ? position : 0);
                 users.add(userInfo);
+                
+                System.out.println("添加在线用户: " + userInfo);
             }
+        } else {
+            System.out.println("没有找到在线用户");
         }
         
+        System.out.println("返回在线用户列表，数量: " + users.size());
         return users;
     }
 

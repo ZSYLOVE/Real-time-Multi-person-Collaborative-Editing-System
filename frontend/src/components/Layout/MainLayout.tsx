@@ -30,10 +30,26 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [logoutMenuSelectedKeys, setLogoutMenuSelectedKeys] = useState<string[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, getSessionDuration } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
+
+  // 检测移动端并设置初始状态
+  React.useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile && !collapsed) {
+        setCollapsed(true);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // 格式化使用时长
   const formatDuration = (milliseconds: number): string => {
@@ -124,6 +140,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   // 处理菜单点击
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
+    // 移动端：点击菜单项后自动隐藏侧边栏
+    if (isMobile) {
+      setCollapsed(true);
+    }
   };
 
   // 获取当前选中的菜单项
@@ -180,6 +200,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         collapsed={collapsed}
         className="main-layout-sider"
         width={200}
+        onCollapse={(collapsed) => setCollapsed(collapsed)}
       >
         <div className="logo">
           {collapsed ? (
@@ -240,6 +261,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
       </Sider>
       <Layout className="main-layout-content">
+        {/* 移动端遮罩层 */}
+        {!collapsed && isMobile && (
+          <div
+            className="mobile-overlay"
+            onClick={() => setCollapsed(true)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.45)',
+              zIndex: 999,
+              animation: 'fadeIn 0.3s',
+            }}
+          />
+        )}
         <Header className="main-layout-header">
           <div className="header-left">
             <Button

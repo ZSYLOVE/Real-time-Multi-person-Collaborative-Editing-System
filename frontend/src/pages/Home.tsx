@@ -159,12 +159,14 @@ const Home: React.FC = () => {
 
       {/* 快速操作 */}
       <Card title="快速操作" className="home-actions">
-        <Space size="large">
+        <Space size="large" direction="vertical" style={{ width: '100%' }} className="home-actions-space">
           <Button
             type="primary"
             size="large"
             icon={<PlusOutlined />}
             onClick={handleCreateDocument}
+            block
+            className="home-action-btn"
           >
             新建文档
           </Button>
@@ -172,6 +174,8 @@ const Home: React.FC = () => {
             size="large"
             icon={<FileTextOutlined />}
             onClick={() => navigate('/documents')}
+            block
+            className="home-action-btn"
           >
             查看所有文档
           </Button>
@@ -203,9 +207,11 @@ const Home: React.FC = () => {
                 actions={[
                   <Button
                     key="edit"
-                    type="link"
+                    type="primary"
+                    size="small"
                     icon={<EditOutlined />}
                     onClick={() => navigate(`/documents/${doc.id}`)}
+                    className="recent-doc-edit-btn"
                   >
                     编辑
                   </Button>,
@@ -213,15 +219,14 @@ const Home: React.FC = () => {
               >
                 <List.Item.Meta
                   title={
-                    <Space>
-                      <span>{doc.title}</span>
-                      {doc.isShared && <Tag color="blue">共享</Tag>}
+                    <Space wrap>
+                      <span className="doc-title">{doc.title}</span>
+                      {doc.isShared && <Tag color="blue" className="doc-shared-tag">共享</Tag>}
                     </Space>
                   }
                   description={
-                    <Space>
+                    <Space wrap split={<span>•</span>} className="doc-meta">
                       <span>版本: {doc.version}</span>
-                      <span>•</span>
                       <span>更新于: {formatDate(doc.updatedAt || doc.createdAt)}</span>
                     </Space>
                   }

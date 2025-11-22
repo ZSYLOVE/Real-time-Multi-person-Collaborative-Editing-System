@@ -2,6 +2,8 @@
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 /* 超大屏幕时增加最大宽度 */
@@ -12,10 +14,24 @@
 }
 
 .document-list-container h1 {
-  margin-bottom: 24px;
+  margin: 0;
+  padding: 16px 0;
   font-size: 24px;
   font-weight: 600;
   color: inherit;
+  line-height: 1.5;
+}
+
+.document-list-container .ant-card {
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.document-list-container .ant-card-body {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px;
 }
 
 .dark-theme .document-list-container .ant-card {
@@ -29,5 +45,670 @@
 
 .dark-theme .document-list-container .ant-list-item:hover {
   background-color: #2a2a2a;
+}
+
+/* 列表项样式 */
+.document-list-container .ant-list-item {
+  padding: 16px;
+  transition: all 0.3s;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.document-list-container .ant-list-item:hover {
+  background-color: #fafafa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .document-list-container .ant-list-item:hover {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 响应式设计 - 平板和手机 */
+@media (max-width: 768px) {
+  .document-list-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .document-list-container h1 {
+    font-size: 20px;
+    margin: 0;
+    padding: 12px 4px;
+    line-height: 1.5;
+  }
+
+  .document-list-container .ant-card-body {
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  .document-list-container .ant-space {
+    width: 100%;
+  }
+
+  .document-list-container .ant-space-item {
+    width: 100%;
+  }
+
+  /* 搜索和按钮区域 */
+  .search-action-space {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap; /* 不换行，确保在同一行 */
+    gap: 8px;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible; /* 允许按钮显示 */
+  }
+
+  .document-search-input {
+    flex: 1 1 0; /* 允许缩小，占据剩余空间 */
+    min-width: 0; /* 允许缩小到最小 */
+    max-width: 100%; /* 确保不超出容器 */
+    box-sizing: border-box;
+    overflow: visible; /* 允许搜索按钮显示 */
+  }
+
+  /* 确保搜索框容器不会超出 */
+  .document-search-input .ant-input-wrapper,
+  .document-search-input .ant-input-group,
+  .document-search-input .ant-input-search {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important; /* 允许按钮显示 */
+  }
+
+  /* 只对输入框部分设置overflow，不影响按钮 */
+  .document-search-input .ant-input-affix-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important; /* 输入框内容不溢出 */
+  }
+
+  /* 确保搜索按钮可见且不被隐藏 */
+  .document-search-input .ant-input-group-addon {
+    flex-shrink: 0 !important;
+    visibility: visible !important;
+    display: block !important;
+    overflow: visible !important;
+    width: auto !important;
+    min-width: auto !important;
+  }
+
+  .document-search-input .ant-input-search-button {
+    flex-shrink: 0 !important;
+    visibility: visible !important;
+    display: flex !important;
+    overflow: visible !important;
+    width: auto !important;
+    min-width: auto !important;
+  }
+
+  .create-document-btn {
+    flex-shrink: 0; /* 按钮不缩小 */
+    white-space: nowrap;
+    min-width: auto;
+    width: auto;
+  }
+
+  .document-list-container .document-search-input input,
+  .document-list-container .document-search-input .ant-input,
+  .document-list-container .document-search-input.ant-input-search input,
+  .document-list-container .document-search-input.ant-input-search .ant-input {
+    height: 32px !important;
+    line-height: 32px !important;
+    padding: 0 11px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+  }
+
+  .document-list-container .document-search-input input::placeholder,
+  .document-list-container .document-search-input .ant-input::placeholder,
+  .document-list-container .document-search-input.ant-input-search input::placeholder,
+  .document-list-container .document-search-input.ant-input-search .ant-input::placeholder {
+    line-height: 32px !important;
+    color: #bfbfbf !important;
+    vertical-align: middle !important;
+    display: inline-block !important;
+  }
+
+  .create-document-btn {
+    height: 32px !important;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* 列表项在移动端的布局 - 按钮在下方 */
+  .document-list-container .ant-list-item {
+    flex-direction: column;
+    align-items: flex-start !important;
+    padding: 12px;
+  }
+
+  .document-title-with-tags {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .document-tags-inline {
+    gap: 4px;
+  }
+
+  .document-list-container .ant-list-item-meta {
+    width: 100%;
+    margin-bottom: 12px;
+    min-width: 0;
+  }
+
+  .document-list-container .ant-list-item-action {
+    width: auto;
+    margin-left: auto !important;
+    margin-top: 0 !important;
+    align-items: flex-end;
+  }
+
+  .document-buttons-right {
+    justify-content: flex-end;
+    width: auto;
+    margin-top: 8px;
+    margin-left: auto;
+  }
+
+  .document-list-container .ant-list-item-action li {
+    width: auto;
+    padding: 0;
+    margin: 0;
+  }
+
+  .document-list-container .ant-list-item-action .ant-btn {
+    width: 70px;
+    height: 32px;
+    margin: 0;
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+
+  .document-action-btn {
+    width: 70px !important;
+    min-width: 70px !important;
+    height: 32px !important;
+  }
+
+  .document-list-container .ant-list-item-meta-title {
+    font-size: 16px;
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+
+  .document-list-container .ant-list-item-meta-description {
+    font-size: 12px;
+    word-break: break-word;
+  }
+}
+
+/* 小屏幕手机 */
+@media (max-width: 480px) {
+  .document-list-container h1 {
+    font-size: 18px;
+    margin: 0;
+    padding: 10px 4px;
+    line-height: 1.5;
+  }
+
+  .document-list-container .ant-card-body {
+    padding: 12px;
+    box-sizing: border-box;
+  }
+
+  .search-action-space {
+    gap: 8px;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    flex-wrap: nowrap; /* 小屏幕也不换行 */
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .document-search-input {
+    flex: 1 1 0; /* 允许缩小，占据剩余空间 */
+    min-width: 0; /* 允许缩小到最小 */
+    box-sizing: border-box;
+    overflow: visible; /* 允许搜索按钮显示 */
+  }
+
+  .document-search-input .ant-input-wrapper,
+  .document-search-input .ant-input-group,
+  .document-search-input .ant-input-search,
+  .document-search-input .ant-input-affix-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .create-document-btn {
+    flex-shrink: 0;
+    width: auto;
+  }
+
+  .create-document-btn {
+    font-size: 13px;
+    padding: 4px 12px;
+  }
+
+  .document-list-container .ant-list-item {
+    padding: 10px;
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .document-title-with-tags {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .document-tags-inline {
+    gap: 4px;
+  }
+
+  .document-list-container .ant-list-item-meta {
+    width: 100%;
+    margin-bottom: 12px;
+    min-width: 0;
+  }
+
+  .document-list-container .ant-list-item-meta-title {
+    font-size: 14px;
+  }
+
+  .document-list-container .ant-list-item-meta-description {
+    font-size: 11px;
+  }
+
+  .document-list-container .ant-list-item-action {
+    width: auto;
+    margin-left: auto !important;
+    margin-top: 0 !important;
+    align-items: flex-end;
+  }
+
+  .document-buttons-right {
+    justify-content: flex-end;
+    width: auto;
+    margin-left: auto;
+  }
+
+  .document-list-container .ant-list-item-action li {
+    width: auto;
+  }
+
+  .document-list-container .ant-list-item-action .ant-btn {
+    width: 65px;
+    height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  .document-action-btn {
+    width: 65px !important;
+    min-width: 65px !important;
+    height: 32px !important;
+  }
+}
+
+/* 搜索和操作区域样式 */
+.search-action-space {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap; /* 桌面端也不换行 */
+  gap: 12px;
+  box-sizing: border-box;
+  overflow: visible; /* 允许按钮显示 */
+}
+
+.document-search-input {
+  flex: 1 1 0; /* 允许缩小，占据剩余空间 */
+  min-width: 0; /* 允许缩小到最小 */
+  max-width: 100%; /* 确保不超出容器 */
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  overflow: visible; /* 允许搜索按钮显示 */
+}
+
+/* 确保搜索框内部容器不会超出 */
+.document-search-input .ant-input-wrapper,
+.document-search-input .ant-input-group,
+.document-search-input .ant-input-search {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: visible !important; /* 允许按钮显示 */
+}
+
+/* 只对输入框部分设置overflow，不影响按钮 */
+.document-search-input .ant-input-affix-wrapper {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important; /* 输入框内容不溢出 */
+}
+
+/* 确保搜索按钮可见且不被隐藏 */
+.document-search-input .ant-input-group-addon {
+  flex-shrink: 0 !important;
+  visibility: visible !important;
+  display: block !important;
+  overflow: visible !important;
+  width: auto !important;
+  min-width: auto !important;
+}
+
+.document-search-input .ant-input-search-button {
+  flex-shrink: 0 !important;
+  visibility: visible !important;
+  display: flex !important;
+  overflow: visible !important;
+  width: auto !important;
+  min-width: auto !important;
+}
+
+/* 确保 ant-input-affix-wrapper 垂直居中 */
+.document-search-input .ant-input-affix-wrapper,
+.document-search-input .ant-input-group .ant-input-affix-wrapper,
+.document-search-input .ant-input-wrapper .ant-input-affix-wrapper,
+.document-list-container .document-search-input .ant-input-affix-wrapper,
+.document-list-container .document-search-input .ant-input-group .ant-input-affix-wrapper,
+.document-list-container .ant-input-search .ant-input-affix-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  height: 32px !important;
+  padding: 0 !important;
+}
+
+/* 确保 ant-input-wrapper 和 ant-input-group 也垂直居中 */
+.document-search-input .ant-input-wrapper,
+.document-search-input .ant-input-group,
+.document-list-container .document-search-input .ant-input-wrapper,
+.document-list-container .document-search-input .ant-input-group,
+.document-list-container .ant-input-search .ant-input-wrapper,
+.document-list-container .ant-input-search .ant-input-group {
+  display: flex !important;
+  align-items: center !important;
+  height: 32px !important;
+}
+
+/* 强制覆盖 Ant Design 搜索框样式 - 针对实际DOM结构 */
+/* 针对 ant-input-affix-wrapper 内的 input（这是实际的输入框） */
+.document-list-container .document-search-input .ant-input-affix-wrapper .ant-input,
+.document-list-container .document-search-input .ant-input-group .ant-input-affix-wrapper .ant-input,
+.document-list-container .ant-input-search .ant-input-affix-wrapper .ant-input,
+.document-list-container .ant-input-search .ant-input-group .ant-input-affix-wrapper .ant-input,
+.document-list-container .document-search-input .ant-input-wrapper .ant-input-affix-wrapper .ant-input,
+.document-list-container .ant-input-search .ant-input-wrapper .ant-input-affix-wrapper .ant-input {
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 11px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  vertical-align: top !important;
+  border: none !important;
+  outline: none !important;
+}
+
+/* 针对 placeholder - 确保垂直居中 */
+.document-list-container .document-search-input .ant-input-affix-wrapper .ant-input::placeholder,
+.document-list-container .document-search-input .ant-input-group .ant-input-affix-wrapper .ant-input::placeholder,
+.document-list-container .ant-input-search .ant-input-affix-wrapper .ant-input::placeholder,
+.document-list-container .ant-input-search .ant-input-group .ant-input-affix-wrapper .ant-input::placeholder,
+.document-list-container .document-search-input .ant-input-wrapper .ant-input-affix-wrapper .ant-input::placeholder,
+.document-list-container .ant-input-search .ant-input-wrapper .ant-input-affix-wrapper .ant-input::placeholder {
+  line-height: 32px !important;
+  color: #bfbfbf !important;
+  opacity: 1 !important;
+}
+
+/* 兼容其他可能的选择器 */
+.document-list-container .document-search-input input[type="text"],
+.document-list-container .document-search-input .ant-input,
+.document-list-container .document-search-input input.ant-input,
+.document-list-container .ant-input-search input,
+.document-list-container .ant-input-search .ant-input {
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 11px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+.document-list-container .document-search-input input[type="text"]::placeholder,
+.document-list-container .document-search-input .ant-input::placeholder,
+.document-list-container .document-search-input input.ant-input::placeholder,
+.document-list-container .ant-input-search input::placeholder,
+.document-list-container .ant-input-search .ant-input::placeholder {
+  line-height: 32px !important;
+  color: #bfbfbf !important;
+  opacity: 1 !important;
+}
+
+/* 搜索框输入框样式 - 针对 ant-input-group 结构 */
+.document-list-container .document-search-input input,
+.document-list-container .document-search-input .ant-input,
+.document-list-container .document-search-input.ant-input-search input,
+.document-list-container .document-search-input.ant-input-search .ant-input,
+.document-list-container .document-search-input .ant-input-group-wrapper input,
+.document-list-container .document-search-input .ant-input-group-wrapper .ant-input,
+.document-list-container .document-search-input .ant-input-group .ant-input,
+.document-list-container .document-search-input .ant-input-group input {
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 11px !important;
+  box-sizing: border-box !important;
+  vertical-align: top !important;
+  margin: 0 !important;
+}
+
+.document-list-container .document-search-input input::placeholder,
+.document-list-container .document-search-input .ant-input::placeholder,
+.document-list-container .document-search-input.ant-input-search input::placeholder,
+.document-list-container .document-search-input.ant-input-search .ant-input::placeholder,
+.document-list-container .document-search-input .ant-input-group-wrapper input::placeholder,
+.document-list-container .document-search-input .ant-input-group-wrapper .ant-input::placeholder,
+.document-list-container .document-search-input .ant-input-group .ant-input::placeholder,
+.document-list-container .document-search-input .ant-input-group input::placeholder {
+  line-height: 32px !important;
+  color: #bfbfbf !important;
+  opacity: 1 !important;
+}
+
+.document-search-input .ant-input-search-button {
+  height: 32px !important;
+  line-height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex-shrink: 0 !important;
+}
+
+/* 确保搜索按钮容器可见 */
+.document-search-input .ant-input-group-addon {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex-shrink: 0 !important;
+  overflow: visible !important;
+}
+
+.document-search-input .ant-btn {
+  height: 32px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.create-document-btn {
+  height: 32px;
+  line-height: 30px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 文档列表项样式 */
+.document-list-item {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 标题和标签容器 */
+.document-title-with-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 8px;
+}
+
+.document-title {
+  flex-shrink: 0;
+}
+
+/* 标签容器 - 紧跟在标题后面 */
+.document-tags-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.document-tag {
+  margin: 0;
+}
+
+/* 按钮容器 - 在底部右对齐 */
+.document-buttons-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  margin-left: auto;
+}
+
+.document-action-btn {
+  width: 80px;
+  min-width: 80px;
+  height: 32px;
+  padding: 4px 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.document-list-container .ant-list-item-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.document-list-container .ant-list-item-action li {
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.document-list-container .ant-list-item-action li:not(:last-child) {
+  margin-right: 0;
+}
+
+/* 文档元信息样式 */
+.doc-meta-info {
+  font-size: 12px;
+  color: #999;
+  flex-wrap: wrap;
+}
+
+.dark-theme .doc-meta-info {
+  color: #888;
+}
+
+/* 桌面端优化 */
+@media (min-width: 769px) {
+  .search-action-space {
+    flex-direction: row !important;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .document-search-input {
+    flex: 1;
+    min-width: 300px;
+    max-width: 500px;
+  }
+
+  .create-document-btn {
+    width: auto !important;
+    flex-shrink: 0;
+  }
+
+  .document-list-item {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .document-list-container .ant-list-item-action {
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .document-list-container .ant-list-item-action li {
+    width: auto;
+  }
+
+  .document-list-container .ant-list-item-action {
+    gap: 8px;
+  }
+
+  .document-list-container .ant-list-item-action .ant-btn {
+    width: 80px;
+    height: 32px;
+    min-width: 80px;
+    margin: 0;
+  }
+
+  .document-action-btn {
+    width: 80px !important;
+    min-width: 80px !important;
+  }
 }
 

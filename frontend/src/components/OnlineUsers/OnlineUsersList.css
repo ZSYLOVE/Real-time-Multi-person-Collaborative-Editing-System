@@ -45,3 +45,44 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+.online-user-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 响应式布局 - 移动设备 */
+@media (max-width: 768px) {
+  .online-users-list {
+    padding: 12px;
+    border-radius: 6px;
+  }
+
+  .online-users-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .online-users-header h3 {
+    font-size: 14px;
+  }
+}
+
+/* 响应式布局 - 小屏幕手机 */
+@media (max-width: 480px) {
+  .online-users-list {
+    padding: 8px;
+    border-radius: 4px;
+  }
+
+  .online-users-header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+
+  .online-users-header h3 {
+    font-size: 13px;
+  }
+}
+

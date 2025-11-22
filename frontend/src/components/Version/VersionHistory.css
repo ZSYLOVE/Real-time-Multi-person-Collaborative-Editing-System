@@ -345,3 +345,114 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* 响应式布局 - 移动设备 */
+@media (max-width: 768px) {
+  .version-history-card .ant-card-head {
+    padding: 10px 12px;
+  }
+
+  .version-history-card .ant-card-head-title {
+    font-size: 14px;
+  }
+
+  .version-history-card .ant-card-body {
+    padding: 10px;
+  }
+
+  .version-item-content {
+    padding: 10px;
+    min-height: 100px;
+  }
+
+  .version-header {
+    margin-bottom: 8px;
+  }
+
+  .version-number {
+    font-size: 14px;
+  }
+
+  .version-time {
+    font-size: 11px;
+  }
+
+  .version-content-preview {
+    font-size: 12px;
+    padding: 8px;
+    max-height: 60px;
+    margin-bottom: 8px;
+  }
+
+  .version-action-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+  }
+
+  .version-preview-content {
+    padding: 16px;
+    max-height: 400px;
+  }
+}
+
+/* 响应式布局 - 小屏幕手机 */
+@media (max-width: 480px) {
+  .version-history-card .ant-card-head {
+    padding: 8px 10px;
+  }
+
+  .version-history-card .ant-card-head-title {
+    font-size: 13px;
+  }
+
+  .version-history-card .ant-card-body {
+    padding: 8px;
+  }
+
+  .version-item-content {
+    padding: 8px;
+    min-height: 80px;
+  }
+
+  .version-header {
+    margin-bottom: 6px;
+  }
+
+  .version-number {
+    font-size: 13px;
+  }
+
+  .version-time {
+    font-size: 10px;
+  }
+
+  .version-content-preview {
+    font-size: 11px;
+    padding: 6px;
+    max-height: 50px;
+    margin-bottom: 6px;
+  }
+
+  .version-action-btn {
+    padding: 2px 8px;
+    font-size: 10px;
+  }
+
+  .version-preview-content {
+    padding: 12px;
+    max-height: 300px;
+    font-size: 13px;
+  }
+
+  .version-preview-content h1 {
+    font-size: 20px;
+  }
+
+  .version-preview-content h2 {
+    font-size: 18px;
+  }
+
+  .version-preview-content h3 {
+    font-size: 16px;
+  }
+}
+

@@ -33,6 +33,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const initializedContentRef = useRef<string | null>(null);
+  const isLocalUpdateRef = useRef<boolean>(false); // 标记是否是本地更新
   const [cursorPositions, setCursorPositions] = useState<Map<number, { top: number; left: number }>>(new Map());
   const [commentMarkers, setCommentMarkers] = useState<Map<number, { top: number; left: number }>>(new Map());
   const { currentDocument, updateDocumentContent, updateDocument, onlineUsers, updateUserCursor, comments } = useDocumentStore();
@@ -86,6 +87,30 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 如果内容已经初始化过且没有变化，跳过
       if (isInitialized && initializedContentRef.current === contentString) {
         return;
+      }
+      
+      // 如果编辑器已经初始化，检查是否是本地更新
+      // 如果是本地更新，不需要重新设置内容（避免光标位置丢失）
+      if (isInitialized && isLocalUpdateRef.current) {
+        // 这是本地更新，不需要重新设置内容
+        initializedContentRef.current = contentString;
+        isLocalUpdateRef.current = false; // 重置标记
+        return;
+      }
+      
+      // 如果编辑器已经初始化，比较当前编辑器内容和新的内容
+      // 如果内容相同，说明是本地更新导致的，不需要重新设置内容（避免光标位置丢失）
+      if (isInitialized) {
+        const currentEditorContent = quill.root.innerHTML;
+        // 标准化HTML内容进行比较（去除空白差异）
+        const normalizeHTML = (html: string) => html.replace(/\s+/g, ' ').trim();
+        const normalizedCurrent = normalizeHTML(currentEditorContent);
+        const normalizedNew = normalizeHTML(contentString);
+        if (normalizedCurrent === normalizedNew) {
+          // 内容相同，只是状态更新，不需要重新设置
+          initializedContentRef.current = contentString;
+          return;
+        }
       }
       
       try {
@@ -334,10 +359,11 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
 
     const handleUserJoin = async (message: WebSocketMessage) => {
       if (message.type === 'JOIN') {
-        console.log('用户加入:', message.userId);
+        console.log('收到用户加入消息:', message.userId, '当前用户:', userId);
         // 获取最新的在线用户列表
         try {
           const result = await apiService.getOnlineUsers(documentId);
+          console.log('用户加入后获取在线用户列表:', result);
           if (result.code === 200 && result.data) {
             // 将后端返回的用户数据转换为 OnlineUser 格式
             const users = result.data.map((user: any) => ({
@@ -348,14 +374,17 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               color: user.color || `#${Math.floor(Math.random()*16777215).toString(16)}`,
               cursorPosition: user.position || undefined,
             }));
+            console.log('更新在线用户列表:', users);
             useDocumentStore.getState().setOnlineUsers(users);
             
             // 更新光标位置
-            users.forEach((user: any) => {
-              if (user.userId !== userId && user.cursorPosition !== undefined) {
-                updateUserCursor(user.userId, user.cursorPosition);
-              }
-            });
+            setTimeout(() => {
+              users.forEach((user: any) => {
+                if (user.userId !== userId && user.cursorPosition !== undefined) {
+                  updateUserCursor(user.userId, user.cursorPosition);
+                }
+              });
+            }, 100);
           }
         } catch (error) {
           console.error('获取在线用户列表失败:', error);
@@ -445,13 +474,20 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       websocketService.onMessage('LEAVE', handleUserLeave);
       websocketService.onMessage('DOCUMENT_UPDATED', handleDocumentUpdate);
 
-      // 加入文档编辑
-      websocketService.joinDocument(documentId);
+      // 加入文档编辑（等待连接完全建立）
+      try {
+        await websocketService.joinDocument(documentId);
+        console.log('成功加入文档:', documentId);
+      } catch (error) {
+        console.error('加入文档失败:', error);
+      }
       
-      // 获取初始在线用户列表
-      setTimeout(async () => {
+      // 获取初始在线用户列表（延迟一点时间，确保后端已处理JOIN消息）
+      const fetchOnlineUsers = async () => {
         try {
+          console.log('获取在线用户列表，文档ID:', documentId);
           const result = await apiService.getOnlineUsers(documentId);
+          console.log('在线用户列表API响应:', result);
           if (result.code === 200 && result.data) {
             // 将后端返回的用户数据转换为 OnlineUser 格式
             const users = result.data.map((user: any) => ({
@@ -462,6 +498,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               color: user.color || `#${Math.floor(Math.random()*16777215).toString(16)}`,
               cursorPosition: user.position || undefined,
             }));
+            console.log('设置在线用户列表:', users);
             useDocumentStore.getState().setOnlineUsers(users);
             
             // 更新光标位置
@@ -472,11 +509,17 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
                 }
               });
             }, 100);
+          } else {
+            console.warn('获取在线用户列表失败，响应码:', result.code, '数据:', result.data);
           }
         } catch (error) {
           console.error('获取在线用户列表失败:', error);
         }
-      }, 500);
+      };
+      
+      // 立即获取一次，然后延迟再获取一次（确保后端已处理）
+      fetchOnlineUsers();
+      setTimeout(fetchOnlineUsers, 1000);
     };
 
     // 调用setupWebSocket
@@ -668,7 +711,8 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         });
       }
 
-      // 更新本地状态
+      // 更新本地状态（标记为本地更新，避免触发内容重置）
+      isLocalUpdateRef.current = true;
       updateDocumentContent(content);
     },
     [isLocalChange, convertDeltaToOperations, updateDocumentContent]

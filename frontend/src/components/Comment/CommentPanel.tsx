@@ -296,17 +296,17 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ documentId }) => {
                   
                   {/* 显示回复 */}
                   {replies.length > 0 && (
-                    <div className="comment-replies" style={{ marginTop: 12, marginLeft: 40 }}>
+                    <div className="comment-replies">
                       {replies.map((reply) => (
-                        <div key={reply.id} className="comment-reply-item" style={{ marginBottom: 8, padding: 8, background: '#f5f5f5', borderRadius: 4 }}>
+                        <div key={reply.id} className="comment-reply-item">
                           <Space>
                             <Avatar size="small" src={reply.user?.avatar}>
                               {reply.user?.nickname?.[0] || reply.user?.username?.[0]}
                             </Avatar>
-                            <span style={{ fontWeight: 500 }}>
+                            <span className="comment-reply-author">
                               {reply.user?.nickname || reply.user?.username}
                             </span>
-                            <span className="comment-time" style={{ fontSize: 12 }}>
+                            <span className="comment-time">
                               {reply.createdAt
                                 ? new Date(reply.createdAt).toLocaleString('zh-CN')
                                 : ''}
@@ -329,7 +329,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ documentId }) => {
                               </Popconfirm>
                             )}
                           </Space>
-                          <div style={{ marginTop: 4, marginLeft: 32 }}>{reply.content}</div>
+                          <div className="comment-reply-content">{reply.content}</div>
                         </div>
                       ))}
                     </div>

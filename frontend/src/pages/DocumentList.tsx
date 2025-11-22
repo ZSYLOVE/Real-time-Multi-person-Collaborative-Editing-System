@@ -165,16 +165,34 @@ const DocumentList: React.FC = () => {
     doc.title.toLowerCase().includes(searchText.toLowerCase())
   );
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) {
+      return '今天';
+    } else if (days === 1) {
+      return '昨天';
+    } else if (days < 7) {
+      return `${days}天前`;
+    } else {
+      return date.toLocaleDateString('zh-CN');
+    }
+  };
+
   return (
     <div className="document-list-container">
       <h1>我的文档</h1>
       <Card>
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-            <Space>
+        <Space direction="vertical" style={{ width: '100%' }} size="large" className="document-list-space">
+            <Space className="search-action-space" size="middle" wrap>
               <Search
                 placeholder="搜索文档"
                 allowClear
-                style={{ width: 300 }}
+                className="document-search-input"
                 onSearch={setSearchText}
                 onChange={(e) => setSearchText(e.target.value)}
               />
@@ -182,74 +200,107 @@ const DocumentList: React.FC = () => {
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleCreateDocument}
+                className="create-document-btn"
               >
                 新建文档
               </Button>
             </Space>
 
-            <List
-              loading={loading}
-              dataSource={filteredDocuments}
-              renderItem={(doc) => (
+            {filteredDocuments.length === 0 && !loading ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
+                <p style={{ fontSize: '16px', marginBottom: '16px' }}>
+                  {searchText ? '没有找到匹配的文档' : '暂无文档'}
+                </p>
+                {!searchText && (
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleCreateDocument}
+                  >
+                    创建第一个文档
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <List
+                loading={loading}
+                dataSource={filteredDocuments}
+                renderItem={(doc) => (
                 <List.Item
+                  className="document-list-item"
                   actions={[
-                    <Button
-                      key="share"
-                      type="link"
-                      icon={<ShareAltOutlined />}
-                      onClick={() => {
-                        setSelectedDocumentId(doc.id);
-                        setShareModalVisible(true);
-                      }}
-                      disabled={doc.creatorId !== user?.id}
-                    >
-                      共享
-                    </Button>,
-                    <Button
-                      key="edit"
-                      type="link"
-                      icon={<EditOutlined />}
-                      onClick={() => navigate(`/documents/${doc.id}`)}
-                    >
-                      编辑
-                    </Button>,
-                    // 只有创建者可以删除
-                    doc.creatorId === user?.id && (
+                    <div key="buttons" className="document-buttons-right">
                       <Button
-                        key="delete"
-                        type="link"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDeleteDocument(doc)}
+                        key="share"
+                        type="default"
+                        icon={<ShareAltOutlined />}
+                        onClick={() => {
+                          setSelectedDocumentId(doc.id);
+                          setShareModalVisible(true);
+                        }}
+                        disabled={doc.creatorId !== user?.id}
+                        className="document-action-btn"
                       >
-                        删除
+                        共享
                       </Button>
-                    ),
+                      <Button
+                        key="edit"
+                        type="primary"
+                        icon={<EditOutlined />}
+                        onClick={() => navigate(`/documents/${doc.id}`)}
+                        className="document-action-btn"
+                      >
+                        编辑
+                      </Button>
+                      {doc.creatorId === user?.id && (
+                        <Button
+                          key="delete"
+                          type="default"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleDeleteDocument(doc)}
+                          className="document-action-btn"
+                        >
+                          删除
+                        </Button>
+                      )}
+                    </div>,
                   ]}
                 >
                   <List.Item.Meta
                     title={
-                      <Space>
-                        <span>{doc.title}</span>
-                        {doc.isShared && (
-                          <Tag color="blue">共享</Tag>
-                        )}
-                        {doc.permissionType && (
-                          <Tag color={
-                            doc.permissionType === 'ADMIN' ? 'red' :
-                            doc.permissionType === 'WRITE' ? 'green' : 'default'
-                          }>
-                            {doc.permissionType === 'ADMIN' ? '管理员' :
-                             doc.permissionType === 'WRITE' ? '编辑' : '只读'}
-                          </Tag>
-                        )}
+                      <div className="document-title-with-tags">
+                        <span className="document-title">{doc.title}</span>
+                        <div className="document-tags-inline">
+                          {doc.isShared && (
+                            <Tag color="blue" className="document-tag">共享</Tag>
+                          )}
+                          {doc.permissionType && (
+                            <Tag 
+                              color={
+                                doc.permissionType === 'ADMIN' ? 'red' :
+                                doc.permissionType === 'WRITE' ? 'green' : 'default'
+                              }
+                              className="document-tag"
+                            >
+                              {doc.permissionType === 'ADMIN' ? '管理员' :
+                               doc.permissionType === 'WRITE' ? '编辑' : '只读'}
+                            </Tag>
+                          )}
+                        </div>
+                      </div>
+                    }
+                    description={
+                      <Space wrap split={<span>•</span>} className="doc-meta-info">
+                        <span>版本: {doc.version}</span>
+                        <span>更新于: {formatDate(doc.updatedAt || doc.createdAt)}</span>
                       </Space>
                     }
-                    description={`版本: ${doc.version} | 更新于: ${doc.updatedAt}`}
                   />
                 </List.Item>
               )}
-            />
+              />
+            )}
           </Space>
         </Card>
       

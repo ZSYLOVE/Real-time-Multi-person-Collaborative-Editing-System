@@ -14,12 +14,16 @@
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .editor-toolbar .version-info {
   color: #666;
   font-size: 14px;
   margin-left: 16px;
+  white-space: nowrap;
 }
 
 .collaborative-editor .ql-container {
@@ -27,11 +31,97 @@
   font-size: 16px;
   height: auto;
   min-height: 500px;
+  box-sizing: border-box;
 }
 
 .collaborative-editor .ql-editor {
   min-height: 500px;
   padding: 20px;
+  box-sizing: border-box;
+}
+
+/* 响应式布局 - 移动设备 */
+@media (max-width: 768px) {
+  .editor-toolbar {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .editor-toolbar .version-info {
+    font-size: 12px;
+    margin-left: 8px;
+  }
+
+  .collaborative-editor .ql-container {
+    font-size: 14px;
+    min-height: 300px;
+  }
+
+  .collaborative-editor .ql-editor {
+    min-height: 300px;
+    padding: 12px;
+  }
+
+  /* Quill 工具栏在移动端的优化 */
+  .ql-toolbar.ql-snow {
+    padding: 8px;
+  }
+
+  .ql-toolbar.ql-snow .ql-formats {
+    margin-right: 8px;
+  }
+
+  .ql-toolbar.ql-snow button {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+  }
+}
+
+/* 响应式布局 - 小屏幕手机 */
+@media (max-width: 480px) {
+  .editor-toolbar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .editor-toolbar .version-info {
+    font-size: 11px;
+    margin-left: 4px;
+    display: none; /* 小屏幕隐藏版本信息 */
+  }
+
+  .collaborative-editor .ql-container {
+    font-size: 14px;
+    min-height: 250px;
+  }
+
+  .collaborative-editor .ql-editor {
+    min-height: 250px;
+    padding: 10px;
+  }
+
+  /* Quill 工具栏在小屏幕的进一步优化 */
+  .ql-toolbar.ql-snow {
+    padding: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ql-toolbar.ql-snow .ql-formats {
+    margin-right: 4px;
+  }
+
+  .ql-toolbar.ql-snow button {
+    width: 24px;
+    height: 24px;
+    padding: 2px;
+  }
+
+  /* 隐藏一些不常用的工具栏按钮 */
+  .ql-toolbar.ql-snow .ql-formats:last-child {
+    display: none;
+  }
 }
 
 .cursor-indicators {

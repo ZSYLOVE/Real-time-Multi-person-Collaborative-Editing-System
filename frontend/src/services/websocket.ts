@@ -100,66 +100,105 @@ class WebSocketService {
   /**
    * 加入文档编辑
    */
-  joinDocument(documentId: number): void {
-    if (!this.client || !this.isConnected) {
-      console.error('WebSocket未连接');
+  async joinDocument(documentId: number): Promise<void> {
+    if (!this.client) {
+      console.error('WebSocket客户端未初始化');
+      return;
+    }
+
+    // 等待STOMP连接完全建立
+    let retries = 0;
+    const maxRetries = 10;
+    while ((!this.isConnected || !this.client.connected) && retries < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries++;
+    }
+
+    if (!this.isConnected || !this.client.connected) {
+      console.error('WebSocket未连接或STOMP连接未建立', {
+        isConnected: this.isConnected,
+        clientConnected: this.client?.connected,
+      });
       return;
     }
 
     this.documentId = documentId;
 
-    // 发送加入消息
-    const joinMessage = {
-      type: 'JOIN',
-      documentId,
-      userId: this.userId,
-      timestamp: Date.now(),
-    };
-    this.client.publish({
-      destination: '/app/document/join',
-      body: JSON.stringify(joinMessage),
-    });
-
-    // 订阅文档更新（避免重复订阅）
-    if (this.subscriptions.has(documentId)) {
-      return; // 已经订阅过，跳过
-    }
-    
-    const subscription = this.client.subscribe(`/topic/document/${documentId}`, (message: IMessage) => {
-      try {
-        const data: WebSocketMessage = JSON.parse(message.body);
-        this.handleMessage(data);
-      } catch (error) {
-        console.error('解析WebSocket消息失败:', error);
+    try {
+      // 先订阅文档更新（避免重复订阅）
+      if (this.subscriptions.has(documentId)) {
+        console.log('已经订阅过该文档，跳过重复订阅');
+      } else {
+        console.log(`订阅文档更新: /topic/document/${documentId}`);
+        const subscription = this.client.subscribe(`/topic/document/${documentId}`, (message: IMessage) => {
+          try {
+            console.log('收到WebSocket消息:', message.body);
+            const data: WebSocketMessage = JSON.parse(message.body);
+            console.log('解析后的消息:', data);
+            this.handleMessage(data);
+          } catch (error) {
+            console.error('解析WebSocket消息失败:', error, message.body);
+          }
+        });
+        
+        // 保存订阅引用
+        this.subscriptions.set(documentId, subscription);
+        console.log('文档订阅成功，订阅ID:', documentId);
+        
+        // 等待订阅完全建立（手机端可能需要更多时间，使用更长的延迟）
+        // STOMP订阅是异步的，需要等待订阅确认
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
-    });
-    
-    // 保存订阅引用
-    this.subscriptions.set(documentId, subscription);
+
+      // 订阅完成后再发送加入消息
+      const joinMessage = {
+        type: 'JOIN',
+        documentId,
+        userId: this.userId,
+        timestamp: Date.now(),
+      };
+      console.log('发送加入文档消息:', joinMessage);
+      this.client.publish({
+        destination: '/app/document/join',
+        body: JSON.stringify(joinMessage),
+      });
+      console.log('加入文档消息已发送');
+    } catch (error) {
+      console.error('加入文档失败:', error);
+      throw error;
+    }
   }
 
   /**
    * 离开文档编辑
    */
   leaveDocument(documentId: number): void {
-    if (!this.client || !this.isConnected) {
+    if (!this.client || !this.isConnected || !this.client.connected) {
       return;
     }
 
-    this.client.publish({
-      destination: '/app/document/leave',
-      body: JSON.stringify({
-        type: 'LEAVE',
-        documentId,
-        userId: this.userId,
-        timestamp: Date.now(),
-      }),
-    });
+    try {
+      this.client.publish({
+        destination: '/app/document/leave',
+        body: JSON.stringify({
+          type: 'LEAVE',
+          documentId,
+          userId: this.userId,
+          timestamp: Date.now(),
+        }),
+      });
+    } catch (error) {
+      console.error('发送离开消息失败:', error);
+    }
 
     // 取消订阅
     const subscription = this.subscriptions.get(documentId);
     if (subscription) {
-      subscription.unsubscribe();
+      try {
+        subscription.unsubscribe();
+      } catch (error) {
+        console.error('取消订阅失败:', error);
+      }
       this.subscriptions.delete(documentId);
     }
 
@@ -170,48 +209,64 @@ class WebSocketService {
    * 发送操作
    */
   sendOperation(operation: OperationDTO): void {
-    if (!this.client || !this.isConnected || !this.documentId) {
+    if (!this.client || !this.isConnected || !this.client.connected || !this.documentId) {
       console.error('WebSocket未连接或未加入文档', {
         client: !!this.client,
         connected: this.isConnected,
+        clientConnected: this.client?.connected,
         documentId: this.documentId,
       });
       return;
     }
 
-    const message = {
-      type: 'OPERATION',
-      documentId: this.documentId,
-      userId: this.userId,
-      data: operation,
-      timestamp: Date.now(),
-    };
-    this.client.publish({
-      destination: '/app/document/operation',
-      body: JSON.stringify(message),
-    });
+    try {
+      const message = {
+        type: 'OPERATION',
+        documentId: this.documentId,
+        userId: this.userId,
+        data: operation,
+        timestamp: Date.now(),
+      };
+      console.log('发送编辑操作:', message);
+      this.client.publish({
+        destination: '/app/document/operation',
+        body: JSON.stringify(message),
+      });
+      console.log('编辑操作已发送');
+    } catch (error) {
+      console.error('发送操作失败:', error);
+    }
   }
 
   /**
    * 发送光标位置
    */
   sendCursorPosition(position: number): void {
-    if (!this.client || !this.isConnected || !this.documentId) {
-      console.warn('无法发送光标位置，WebSocket未连接或未加入文档');
+    if (!this.client || !this.isConnected || !this.client.connected || !this.documentId) {
+      console.warn('无法发送光标位置，WebSocket未连接或未加入文档', {
+        client: !!this.client,
+        connected: this.isConnected,
+        clientConnected: this.client?.connected,
+        documentId: this.documentId,
+      });
       return;
     }
 
-    const message = {
-      type: 'CURSOR',
-      documentId: this.documentId,
-      userId: this.userId,
-      data: { position },
-      timestamp: Date.now(),
-    };
-    this.client.publish({
-      destination: '/app/document/cursor',
-      body: JSON.stringify(message),
-    });
+    try {
+      const message = {
+        type: 'CURSOR',
+        documentId: this.documentId,
+        userId: this.userId,
+        data: { position },
+        timestamp: Date.now(),
+      };
+      this.client.publish({
+        destination: '/app/document/cursor',
+        body: JSON.stringify(message),
+      });
+    } catch (error) {
+      console.error('发送光标位置失败:', error);
+    }
   }
 
   /**

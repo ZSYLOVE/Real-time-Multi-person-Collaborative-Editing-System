@@ -48,8 +48,30 @@
   padding-left: 12px;
 }
 
+.comment-replies {
+  margin-top: 12px;
+  margin-left: 40px;
+}
+
 .comment-reply-item {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
   border-left: 2px solid #d9d9d9;
+  transition: background-color 0.2s;
+}
+
+.comment-reply-author {
+  font-weight: 500;
+  color: #333;
+}
+
+.comment-reply-content {
+  margin-top: 4px;
+  margin-left: 32px;
+  color: #666;
+  line-height: 1.5;
 }
 
 /* 夜间模式样式 */
@@ -76,6 +98,19 @@
 }
 
 .dark-theme .comment-reply-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-left-color: #434343;
+}
+
+.dark-theme .comment-reply-author {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .comment-reply-content {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.dark-theme .comment-replies {
   border-left-color: #434343;
 }
 
@@ -97,5 +132,78 @@
 
 .dark-theme .comment-list .ant-comment-content-detail {
   color: rgba(255, 255, 255, 0.85);
+}
+
+/* 响应式布局 - 移动设备 */
+@media (max-width: 768px) {
+  .comment-panel {
+    padding: 12px;
+    border-radius: 6px;
+  }
+
+  .comment-panel-header {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+
+  .comment-panel-header h3 {
+    font-size: 14px;
+  }
+
+  .comment-input {
+    margin-bottom: 12px;
+  }
+
+  .comment-replies {
+    margin-left: 24px;
+  }
+
+  .comment-reply-item {
+    padding: 6px 10px;
+  }
+
+  .comment-reply-content {
+    margin-left: 24px;
+    font-size: 13px;
+  }
+}
+
+/* 响应式布局 - 小屏幕手机 */
+@media (max-width: 480px) {
+  .comment-panel {
+    padding: 8px;
+    border-radius: 4px;
+  }
+
+  .comment-panel-header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+
+  .comment-panel-header h3 {
+    font-size: 13px;
+  }
+
+  .comment-input {
+    margin-bottom: 8px;
+  }
+
+  .comment-replies {
+    margin-left: 16px;
+  }
+
+  .comment-reply-item {
+    padding: 4px 8px;
+  }
+
+  .comment-reply-content {
+    margin-left: 16px;
+    font-size: 12px;
+  }
+
+  .comment-time {
+    font-size: 11px;
+    margin-left: 4px;
+  }
 }
 

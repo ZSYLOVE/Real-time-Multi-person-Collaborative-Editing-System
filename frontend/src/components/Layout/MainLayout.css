@@ -1,5 +1,7 @@
 .main-layout {
   min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .main-layout-sider {
@@ -82,6 +84,8 @@
 .main-layout-content {
   margin-left: 200px;
   transition: margin-left 0.2s;
+  width: calc(100% - 200px);
+  box-sizing: border-box;
 }
 
 .main-layout-content.collapsed {
@@ -155,6 +159,8 @@
   border-radius: 8px;
   min-height: calc(100vh - 112px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 大屏幕时减少边距 */
@@ -182,25 +188,141 @@
   margin-left: 80px;
 }
 
-/* 响应式设计 */
+/* 移动端遮罩层 */
+.mobile-overlay {
+  display: none;
+}
+
+/* 响应式设计 - 平板和手机 */
 @media (max-width: 768px) {
   .main-layout-sider {
     position: fixed;
     z-index: 1000;
     height: 100vh;
-  }
-
-  .main-layout-content {
-    margin-left: 0;
+    left: 0;
+    transition: transform 0.3s ease;
   }
 
   .main-layout-sider.ant-layout-sider-collapsed {
     transform: translateX(-100%);
   }
 
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .mobile-overlay {
+    display: block;
+  }
+
+  .main-layout-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    position: relative;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .main-layout-header {
+    padding: 0 16px;
+  }
+
+  .header-right .welcome-text {
+    display: none;
+  }
+
+  .header-right .ant-space {
+    gap: 8px !important;
+  }
+
   .main-layout-body {
-    margin: 16px;
-    padding: 16px;
+    margin: 0;
+    padding: 12px;
+    min-height: calc(100vh - 64px);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .trigger-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 16px;
+  }
+
+  .theme-toggle-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .logo {
+    height: 56px;
+    min-height: 56px;
+    max-height: 56px;
+    margin: 8px;
+    padding: 8px;
+  }
+
+  .logo-text {
+    font-size: 14px;
+  }
+
+  .menu-container {
+    height: calc(100vh - 72px);
+    max-height: calc(100vh - 72px);
+  }
+}
+
+/* 小屏幕手机 */
+@media (max-width: 480px) {
+  .main-layout-header {
+    padding: 0 12px;
+  }
+
+  .main-layout-body {
+    margin: 0;
+    padding: 8px;
+    min-height: calc(100vh - 64px);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .trigger-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 14px;
+  }
+
+  .theme-toggle-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .logo {
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    margin: 4px;
+    padding: 4px;
+  }
+
+  .logo-text {
+    font-size: 12px;
+  }
+
+  .logo-icon {
+    font-size: 20px;
+  }
+
+  .menu-container {
+    height: calc(100vh - 56px);
+    max-height: calc(100vh - 56px);
   }
 }
 
