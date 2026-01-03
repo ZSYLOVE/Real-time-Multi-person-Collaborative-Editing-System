@@ -21,7 +21,37 @@ const DocumentList: React.FC = () => {
 
   useEffect(() => {
     if (user?.id) {
-      loadDocuments();
+      // 确保 token 存在后再加载文档
+      const checkAndLoad = () => {
+        const token = sessionStorage.getItem('token');
+        if (token) {
+          loadDocuments();
+          return true;
+        }
+        return false;
+      };
+      
+      // 立即检查
+      if (!checkAndLoad()) {
+        // 如果 token 不存在，等待后重试（可能是登录过程中的时序问题）
+        console.warn('DocumentList: Token不存在，等待后重试');
+        let retryCount = 0;
+        const maxRetries = 5; // 最多重试5次
+        const retryInterval = 200; // 每次间隔200ms
+        
+        const retryTimer = setInterval(() => {
+          retryCount++;
+          if (checkAndLoad()) {
+            clearInterval(retryTimer);
+          } else if (retryCount >= maxRetries) {
+            clearInterval(retryTimer);
+            console.error('DocumentList: Token在多次重试后仍然不存在，无法加载文档');
+            message.error('认证信息丢失，请重新登录');
+          }
+        }, retryInterval);
+        
+        return () => clearInterval(retryTimer);
+      }
     }
   }, [user?.id]);
 

@@ -40,6 +40,161 @@
   box-sizing: border-box;
 }
 
+/* Quill 字体格式样式 */
+.ql-font-arial {
+  font-family: Arial, sans-serif;
+}
+
+.ql-font-comic-sans {
+  font-family: 'Comic Sans MS', cursive;
+}
+
+.ql-font-courier-new {
+  font-family: 'Courier New', monospace;
+}
+
+.ql-font-georgia {
+  font-family: Georgia, serif;
+}
+
+.ql-font-helvetica {
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.ql-font-lucida {
+  font-family: 'Lucida Console', monospace;
+}
+
+.ql-font-times-new-roman {
+  font-family: 'Times New Roman', serif;
+}
+
+.ql-font-verdana {
+  font-family: Verdana, sans-serif;
+}
+
+.ql-font-simsun {
+  font-family: 'SimSun', '宋体', serif;
+}
+
+.ql-font-simhei {
+  font-family: 'SimHei', '黑体', sans-serif;
+}
+
+.ql-font-kaiti {
+  font-family: 'KaiTi', '楷体', serif;
+}
+
+.ql-font-fangsong {
+  font-family: 'FangSong', '仿宋', serif;
+}
+
+.ql-font-microsoft-yahei {
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+}
+
+/* Quill 字体大小样式 */
+.ql-size-small {
+  font-size: 0.75em;
+}
+
+.ql-size-large {
+  font-size: 1.5em;
+}
+
+.ql-size-huge {
+  font-size: 2.5em;
+}
+
+/* Quill 对齐样式 */
+.ql-align-center {
+  text-align: center;
+}
+
+.ql-align-right {
+  text-align: right;
+}
+
+.ql-align-justify {
+  text-align: justify;
+}
+
+/* Quill 缩进样式 */
+.ql-indent-1 {
+  padding-left: 3em;
+}
+
+.ql-indent-2 {
+  padding-left: 6em;
+}
+
+.ql-indent-3 {
+  padding-left: 9em;
+}
+
+.ql-indent-4 {
+  padding-left: 12em;
+}
+
+.ql-indent-5 {
+  padding-left: 15em;
+}
+
+.ql-indent-6 {
+  padding-left: 18em;
+}
+
+.ql-indent-7 {
+  padding-left: 21em;
+}
+
+.ql-indent-8 {
+  padding-left: 24em;
+}
+
+/* Quill 上标/下标样式 */
+.ql-script {
+  vertical-align: baseline;
+}
+
+.ql-script.ql-sub {
+  vertical-align: sub;
+  font-size: 0.8em;
+}
+
+.ql-script.ql-super {
+  vertical-align: super;
+  font-size: 0.8em;
+}
+
+/* Quill 代码块样式 */
+.ql-code-block-container {
+  background: #f5f5f5;
+  border-left: 4px solid #ddd;
+  padding: 12px;
+  margin: 16px 0;
+  border-radius: 4px;
+}
+
+.ql-code-block-container code {
+  font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+/* Quill 引用样式 */
+.ql-editor blockquote {
+  border-left: 4px solid #ccc;
+  margin: 16px 0;
+  padding-left: 16px;
+  color: #666;
+  font-style: italic;
+}
+
 /* 响应式布局 - 移动设备 */
 @media (max-width: 768px) {
   .editor-toolbar {
@@ -346,5 +501,40 @@
 .dark-theme .comment-marker {
   background: rgba(24, 144, 255, 0.2);
   border-bottom-color: #1890ff;
+}
+
+/* 夜间模式 - 字体大小 */
+.dark-theme .ql-size-small {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.dark-theme .ql-size-large {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark-theme .ql-size-huge {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* 夜间模式 - 代码块 */
+.dark-theme .ql-code-block-container {
+  background: #2a2a2a;
+  border-left-color: #434343;
+}
+
+.dark-theme .ql-code-block-container code {
+  color: rgba(255, 255, 255, 0.85);
+  background: transparent;
+}
+
+/* 夜间模式 - 引用 */
+.dark-theme .ql-editor blockquote {
+  border-left-color: #434343;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* 夜间模式 - 上标/下标 */
+.dark-theme .ql-script {
+  color: rgba(255, 255, 255, 0.85);
 }
 

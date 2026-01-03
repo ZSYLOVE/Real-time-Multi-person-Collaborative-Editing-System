@@ -36,23 +36,31 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   const isLocalUpdateRef = useRef<boolean>(false); // 标记是否是本地更新
   const [cursorPositions, setCursorPositions] = useState<Map<number, { top: number; left: number }>>(new Map());
   const [commentMarkers, setCommentMarkers] = useState<Map<number, { top: number; left: number }>>(new Map());
+  const cursorDebounceTimerRef = useRef<NodeJS.Timeout | null>(null); // 光标位置发送防抖定时器
   const { currentDocument, updateDocumentContent, updateDocument, onlineUsers, updateUserCursor, comments } = useDocumentStore();
 
-  // Quill工具栏配置
+  // Quill工具栏配置 - 扩展格式选项
   const modules = {
     toolbar: readOnly
       ? false
       : [
-          [{ header: [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ color: [] }, { background: [] }],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          ['link', 'image'],
-          ['clean'],
+          [{ header: [1, 2, 3, 4, 5, 6, false] }], // 扩展标题级别
+          [{ size: ['small', false, 'large', 'huge'] }], // 字体大小
+          [{ font: [] }], // 字体选择
+          ['bold', 'italic', 'underline', 'strike'], // 基本格式
+          [{ script: 'sub'}, { script: 'super' }], // 上标/下标
+          [{ color: [] }, { background: [] }], // 文字颜色和背景色
+          [{ align: [] }], // 对齐方式
+          [{ indent: '-1' }, { indent: '+1' }], // 缩进
+          [{ list: 'ordered' }, { list: 'bullet' }], // 列表
+          [{ direction: 'rtl' }], // 文字方向
+          ['blockquote', 'code-block'], // 引用和代码块
+          ['link', 'image', 'video'], // 媒体
+          ['clean'], // 清除格式
         ],
   };
 
-  // 注册评论标记Blot（用于在文档中高亮显示评论位置）
+  // 注册评论标记Blot和配置Quill格式
   useEffect(() => {
     if (typeof window !== 'undefined' && Quill) {
       // 定义评论标记的Blot
@@ -73,6 +81,38 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       CommentMarker.tagName = 'span';
       CommentMarker.className = 'comment-marker';
       Quill.register(CommentMarker, true);
+
+      // 配置字体列表（支持常用字体）
+      try {
+        const Font = Quill.import('formats/font');
+        Font.whitelist = [
+          'arial',
+          'comic-sans',
+          'courier-new',
+          'georgia',
+          'helvetica',
+          'lucida',
+          'times-new-roman',
+          'verdana',
+          'simsun', // 宋体
+          'simhei', // 黑体
+          'kaiti', // 楷体
+          'fangsong', // 仿宋
+          'microsoft-yahei', // 微软雅黑
+        ];
+        Quill.register(Font, true);
+      } catch (e) {
+        console.warn('字体格式注册失败:', e);
+      }
+
+      // 配置字体大小（确保大小选项生效）
+      try {
+        const Size = Quill.import('formats/size');
+        Size.whitelist = ['small', false, 'large', 'huge'];
+        Quill.register(Size, true);
+      } catch (e) {
+        console.warn('字体大小格式注册失败:', e);
+      }
     }
   }, []);
 
@@ -191,11 +231,36 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   }, [currentDocument?.content, isInitialized]);
 
   // 应用远程操作
+  // 转换光标位置：根据操作调整光标位置
+  const transformCursorPosition = useCallback((cursorPos: number, operation: OperationDTO): number => {
+    if (operation.type === 'INSERT') {
+      // 如果插入在光标之前，光标位置后移
+      if (operation.position <= cursorPos) {
+        return cursorPos + (operation.data?.length || 0);
+      }
+      return cursorPos;
+    } else if (operation.type === 'DELETE') {
+      // 如果删除在光标之前，光标位置前移
+      if (operation.position + operation.length <= cursorPos) {
+        return cursorPos - operation.length;
+      } else if (operation.position < cursorPos) {
+        // 删除范围包含光标位置，光标移动到删除起点
+        return operation.position;
+      }
+      return cursorPos;
+    }
+    return cursorPos;
+  }, []);
+
   const applyRemoteOperation = useCallback((operation: OperationDTO) => {
     const quill = quillRef.current?.getEditor();
     if (!quill) {
       return;
     }
+
+    // 保存当前光标位置（在应用操作前）
+    const currentSelection = quill.getSelection();
+    const savedCursorIndex = currentSelection ? currentSelection.index : null;
 
     // 防止本地变更触发循环 - 立即设置，不使用延迟
     const wasLocalChange = isLocalChange;
@@ -242,6 +307,31 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           console.warn('未知的操作类型:', operation.type);
       }
       
+      // 恢复自己的光标位置（根据操作转换）
+      if (savedCursorIndex !== null) {
+        const transformedCursor = transformCursorPosition(savedCursorIndex, operation);
+        // 延迟设置光标，确保DOM已更新
+        setTimeout(() => {
+          quill.setSelection(transformedCursor, 0, 'api');
+        }, 0);
+      }
+      
+      // 转换所有其他用户的光标位置
+      const updatedUsers = onlineUsers.map(user => {
+        if (user.userId !== userId && user.cursorPosition !== undefined && user.cursorPosition !== null) {
+          const transformedPos = transformCursorPosition(user.cursorPosition, operation);
+          return { ...user, cursorPosition: transformedPos };
+        }
+        return user;
+      });
+      
+      // 更新store中的用户光标位置
+      updatedUsers.forEach(user => {
+        if (user.userId !== userId && user.cursorPosition !== undefined) {
+          updateUserCursor(user.userId, user.cursorPosition);
+        }
+      });
+      
       // 操作应用后，更新文档内容状态（不触发 onChange）
       const content = quill.root.innerHTML;
       updateDocumentContent(content);
@@ -255,7 +345,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         const editorRect = editorElement.getBoundingClientRect();
         const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
         
-        onlineUsers.forEach((user) => {
+        updatedUsers.forEach((user) => {
           if (user.userId !== userId && user.cursorPosition !== undefined && user.cursorPosition !== null) {
             try {
               const bounds = quill.getBounds(user.cursorPosition, 0);
@@ -282,7 +372,136 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 立即恢复本地变更标志（不使用延迟，避免影响后续操作）
       setIsLocalChange(wasLocalChange);
     }
-  }, [onlineUsers, userId, updateDocumentContent, isLocalChange]);
+  }, [onlineUsers, userId, updateDocumentContent, isLocalChange, transformCursorPosition, updateUserCursor]);
+
+  // 更新用户光标像素位置的辅助函数（带重试机制）
+  const updateCursorPixelPosition = useCallback((targetUserId: number, position: number, retryCount = 0) => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill || !isInitialized) {
+      // 如果 Quill 未初始化，延迟重试（最多重试3次）
+      if (retryCount < 3) {
+        setTimeout(() => {
+          updateCursorPixelPosition(targetUserId, position, retryCount + 1);
+        }, 200);
+      }
+      return;
+    }
+
+    // 使用 requestAnimationFrame 确保在 DOM 完全渲染后计算位置
+    requestAnimationFrame(() => {
+      try {
+        // 确保位置不超过文档长度
+        const docLength = quill.getLength() - 1;
+        if (docLength <= 0) {
+          // 文档为空，光标应该在顶部
+          const editorElement = quill.root;
+          const collaborativeEditor = editorElement.closest('.collaborative-editor');
+          if (collaborativeEditor) {
+            const editorRect = editorElement.getBoundingClientRect();
+            const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
+            
+            setCursorPositions((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(targetUserId, { 
+                top: editorRect.top - containerRect.top,
+                left: editorRect.left - containerRect.left
+              });
+              return newMap;
+            });
+          }
+          return;
+        }
+        
+        const validPosition = Math.min(Math.max(0, position), docLength);
+        
+        // 使用 getBounds 获取光标位置，length 为 0 表示光标位置
+        // 注意：getBounds 返回的位置是相对于 .ql-editor 的，不是相对于 .ql-container
+        const bounds = quill.getBounds(validPosition, 0);
+        if (bounds && bounds.top !== null && bounds.left !== null && !isNaN(bounds.top) && !isNaN(bounds.left)) {
+          const editorElement = quill.root; // .ql-editor
+          const collaborativeEditor = editorElement.closest('.collaborative-editor');
+          if (collaborativeEditor) {
+            // 获取 .ql-editor 相对于 .collaborative-editor 的位置
+            const editorRect = editorElement.getBoundingClientRect();
+            const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
+            
+            // 计算相对于 .collaborative-editor 容器的位置
+            // bounds.top 是相对于 .ql-editor 的位置
+            // editorRect.top - containerRect.top 是 .ql-editor 相对于容器的偏移
+            let absoluteTop = bounds.top + editorRect.top - containerRect.top;
+            let absoluteLeft = bounds.left + editorRect.left - containerRect.left;
+            
+            // 验证计算出的位置是否合理
+            // 允许一定的负值（因为可能有滚动），但不要太大
+            const containerHeight = containerRect.height;
+            const containerWidth = containerRect.width;
+            
+            // 检查位置是否在合理范围内（允许一些误差）
+            // 如果位置不合理，可能是 Quill 还未完全渲染，重试
+            if (absoluteTop < -100 || absoluteTop > containerHeight + 100 || 
+                absoluteLeft < -100 || absoluteLeft > containerWidth + 100) {
+              if (retryCount < 3) {
+                setTimeout(() => {
+                  updateCursorPixelPosition(targetUserId, position, retryCount + 1);
+                }, 200);
+                return;
+              } else {
+                console.warn('计算出的光标位置无效，已重试3次:', { 
+                  absoluteTop, 
+                  absoluteLeft, 
+                  bounds, 
+                  position,
+                  containerHeight,
+                  containerWidth,
+                  editorRect,
+                  containerRect
+                });
+                return;
+              }
+            }
+            
+            // 位置合理，更新光标位置
+            setCursorPositions((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(targetUserId, { 
+                top: absoluteTop,
+                left: absoluteLeft
+              });
+              return newMap;
+            });
+          }
+        } else {
+          // 如果获取bounds失败，可能是 Quill 还未完全渲染，重试
+          if (retryCount < 3) {
+            setTimeout(() => {
+              updateCursorPixelPosition(targetUserId, position, retryCount + 1);
+            }, 200);
+          } else {
+            // 重试3次后仍失败，从map中移除
+            setCursorPositions((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(targetUserId);
+              return newMap;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('更新光标像素位置失败:', error, '用户:', targetUserId, '位置:', position);
+        // 出错时也重试
+        if (retryCount < 3) {
+          setTimeout(() => {
+            updateCursorPixelPosition(targetUserId, position, retryCount + 1);
+          }, 200);
+        } else {
+          setCursorPositions((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(targetUserId);
+            return newMap;
+          });
+        }
+      }
+    });
+  }, [isInitialized]);
 
   // 初始化WebSocket监听
   useEffect(() => {
@@ -322,38 +541,23 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       if (message.type === 'CURSOR' && message.userId !== userId) {
         const cursorData = message.data as { position: number };
         const position = cursorData.position;
+        
+        // 验证位置有效性
+        if (position === undefined || position === null || position < 0) {
+          console.warn('收到无效的光标位置:', position, '来自用户:', message.userId);
+          return;
+        }
+        
+        // 更新store中的光标位置
         updateUserCursor(message.userId, position);
         
-        // 更新光标像素位置（延迟执行，确保DOM已更新）
-        setTimeout(() => {
-          const quill = quillRef.current?.getEditor();
-          if (quill && position !== undefined && position !== null) {
-            try {
-              const bounds = quill.getBounds(position, 0);
-              if (bounds) {
-                // 获取 .ql-editor 元素和 .collaborative-editor 容器
-                const editorElement = quill.root;
-                const collaborativeEditor = editorElement.closest('.collaborative-editor');
-                if (collaborativeEditor) {
-                  const editorRect = editorElement.getBoundingClientRect();
-                  const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
-                  
-                  setCursorPositions((prev) => {
-                    const newMap = new Map(prev);
-                    // 计算相对于 .collaborative-editor 的位置
-                    newMap.set(message.userId, { 
-                      top: bounds.top + editorRect.top - containerRect.top,
-                      left: bounds.left + editorRect.left - containerRect.left
-                    });
-                    return newMap;
-                  });
-                }
-              }
-            } catch (error) {
-              console.error('获取光标位置失败:', error);
-            }
-          }
-        }, 10);
+        // 使用统一的更新函数更新光标像素位置
+        // 使用 requestAnimationFrame 确保在 DOM 更新后计算位置
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            updateCursorPixelPosition(message.userId, position);
+          }, 50);
+        });
       }
     };
 
@@ -377,14 +581,22 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
             console.log('更新在线用户列表:', users);
             useDocumentStore.getState().setOnlineUsers(users);
             
-            // 更新光标位置
+            // 更新光标位置（延迟执行，确保Quill完全初始化）
+            // 使用多次延迟，确保DOM完全渲染
             setTimeout(() => {
               users.forEach((user: any) => {
-                if (user.userId !== userId && user.cursorPosition !== undefined) {
+                if (user.userId !== userId && user.cursorPosition !== undefined && user.cursorPosition !== null) {
+                  // 更新store中的光标位置
                   updateUserCursor(user.userId, user.cursorPosition);
+                  // 延迟更新光标像素位置，确保Quill完全渲染
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      updateCursorPixelPosition(user.userId, user.cursorPosition);
+                    }, 100);
+                  });
                 }
               });
-            }, 100);
+            }, 300); // 增加延迟，确保Quill完全初始化
           }
         } catch (error) {
           console.error('获取在线用户列表失败:', error);
@@ -501,14 +713,22 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
             console.log('设置在线用户列表:', users);
             useDocumentStore.getState().setOnlineUsers(users);
             
-            // 更新光标位置
+            // 更新光标位置（延迟执行，确保Quill完全初始化）
+            // 使用多次延迟，确保DOM完全渲染
             setTimeout(() => {
               users.forEach((user: any) => {
-                if (user.userId !== userId && user.cursorPosition !== undefined) {
+                if (user.userId !== userId && user.cursorPosition !== undefined && user.cursorPosition !== null) {
+                  // 更新store中的光标位置
                   updateUserCursor(user.userId, user.cursorPosition);
+                  // 延迟更新光标像素位置，确保Quill完全渲染
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      updateCursorPixelPosition(user.userId, user.cursorPosition);
+                    }, 100);
+                  });
                 }
               });
-            }, 100);
+            }, 300); // 增加延迟，确保Quill完全初始化
           } else {
             console.warn('获取在线用户列表失败，响应码:', result.code, '数据:', result.data);
           }
@@ -527,6 +747,12 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
 
     // 清理函数
     return () => {
+      // 清理防抖定时器
+      if (cursorDebounceTimerRef.current) {
+        clearTimeout(cursorDebounceTimerRef.current);
+        cursorDebounceTimerRef.current = null;
+      }
+      
       websocketService.offMessage('OPERATION', handleRemoteOperation);
       websocketService.offMessage('CURSOR', handleCursorMove);
       websocketService.offMessage('JOIN', handleUserJoin);
@@ -718,12 +944,20 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     [isLocalChange, convertDeltaToOperations, updateDocumentContent]
   );
 
-  // 处理光标选择变化
+  // 处理光标选择变化（带防抖）
   const handleSelectionChange = useCallback((range: any) => {
     if (range && !readOnly && isInitialized) {
+      // 清除之前的定时器
+      if (cursorDebounceTimerRef.current) {
+        clearTimeout(cursorDebounceTimerRef.current);
+      }
+      
       // 只有在初始化完成且 WebSocket 已连接时才发送光标位置
       if (websocketService.getConnected()) {
-        websocketService.sendCursorPosition(range.index);
+        // 使用防抖，避免频繁发送光标位置（100ms内只发送一次）
+        cursorDebounceTimerRef.current = setTimeout(() => {
+          websocketService.sendCursorPosition(range.index);
+        }, 100);
       }
     }
   }, [readOnly, isInitialized]);

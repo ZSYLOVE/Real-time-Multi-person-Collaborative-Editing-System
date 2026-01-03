@@ -98,6 +98,24 @@ public class UserController {
     }
 
     /**
+     * 退出登录（释放“登录占用锁”）
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Result<Void>> logout(HttpServletRequest request) {
+        try {
+            Long userId = RequestUtil.getUserId(request);
+            if (userId == null) {
+                return ResponseEntity.badRequest().body(Result.error("未认证"));
+            }
+            // 释放登录占用锁
+            userService.logout(userId);
+            return ResponseEntity.ok(Result.success("退出成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Result.error("退出失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 获取当前登录用户信息
      */
     @GetMapping("/info")

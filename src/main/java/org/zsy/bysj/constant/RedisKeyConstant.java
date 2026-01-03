@@ -22,6 +22,12 @@ public class RedisKeyConstant {
     public static final String USER_CURSOR_KEY = "user_cursor:";
 
     /**
+     * 用户登录占用锁 key 前缀（用于限制同账号同时登录）
+     */
+    public static final String USER_LOGIN_LOCK_KEY = "user_login_lock:";
+
+
+    /**
      * 构建文档缓存key
      */
     public static String buildDocumentCacheKey(Long documentId) {
@@ -40,6 +46,13 @@ public class RedisKeyConstant {
      */
     public static String buildUserCursorKey(Long documentId, Long userId) {
         return USER_CURSOR_KEY + documentId + ":" + userId;
+    }
+
+    /**
+     * 构建用户登录占用锁 key
+     */
+    public static String buildUserLoginLockKey(Long userId) {
+        return USER_LOGIN_LOCK_KEY + userId;
     }
 
     /**

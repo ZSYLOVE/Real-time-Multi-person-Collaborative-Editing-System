@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons';
 import useAuthStore from '@/stores/authStore';
 import useThemeStore from '@/stores/themeStore';
+import { signOut } from '@/utils/signOut';
 import type { MenuProps } from 'antd';
 import './MainLayout.css';
 
@@ -33,7 +34,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, getSessionDuration } = useAuthStore();
+  const { user, getSessionDuration } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
 
   // 检测移动端并设置初始状态
@@ -104,10 +105,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </div>
           ),
           okText: '确定',
-          onOk: () => {
-            // 执行退出并跳转
-            logout();
-            navigate('/login');
+          onOk: async () => {
+            // 统一退出（通知后端释放锁 + 清理前端 + 跳转）
+            await signOut({ redirectTo: '/login' });
           },
         });
       },

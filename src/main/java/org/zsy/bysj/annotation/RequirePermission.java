@@ -16,5 +16,6 @@ public @interface RequirePermission {
      * 需要的权限类型：READ、WRITE、ADMIN
      */
     String value() default "READ";
+
 }
 

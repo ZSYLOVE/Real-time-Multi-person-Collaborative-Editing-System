@@ -37,5 +37,10 @@ public interface UserService extends IService<User> {
      * 更新用户信息
      */
     User updateUserInfo(Long userId, String nickname, String email, String avatar);
+
+    /**
+     * 退出登录（释放“登录占用锁”）
+     */
+    void logout(Long userId);
 }
 

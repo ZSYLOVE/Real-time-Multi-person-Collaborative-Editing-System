@@ -7,7 +7,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.zsy.bysj.annotation.PublicEndpoint;
+import org.zsy.bysj.constant.RedisKeyConstant;
 import org.zsy.bysj.util.JwtUtil;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * JWT拦截器 - 验证Token
@@ -17,6 +22,16 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    /**
+     * 主流做法：滑动过期（sliding expiration）
+     * - 只要用户持续有请求，就延长“在线锁”的TTL
+     * - 一段时间无请求（如60分钟）自动释放锁，允许重新登录
+     */
+    private static final long ONLINE_LOCK_TTL_MINUTES = 60;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -59,6 +74,21 @@ public class JwtInterceptor implements HandlerInterceptor {
             Long userId = jwtUtil.getUserIdFromToken(token);
             request.setAttribute("userId", userId);
             request.setAttribute("token", token);
+
+            // ===== 登录占用锁续期（滑动过期）=====
+            // 只要用户持续访问接口，就刷新 user_login_lock:{userId} 的 TTL。
+            // 主流网站常见策略：60 分钟无操作自动下线。
+            try {
+                String lockKey = RedisKeyConstant.buildUserLoginLockKey(userId);
+                // 如果锁存在则续期；不存在则不创建（避免“凭token复活锁”带来混乱）
+                Boolean hasKey = stringRedisTemplate.hasKey(lockKey);
+                if (Boolean.TRUE.equals(hasKey)) {
+                    stringRedisTemplate.expire(lockKey, ONLINE_LOCK_TTL_MINUTES, TimeUnit.MINUTES);
+                }
+            } catch (Exception ex) {
+                // Redis异常不影响正常请求（否则会导致大量误401）
+                System.out.println("[LOGIN_LOCK] 续期失败: " + ex.getMessage());
+            }
 
             return true;
         } catch (Exception e) {

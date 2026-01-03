@@ -5,11 +5,16 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.zsy.bysj.constant.RedisKeyConstant;
 import org.zsy.bysj.mapper.UserMapper;
 import org.zsy.bysj.model.User;
 import org.zsy.bysj.service.UserService;
 import org.zsy.bysj.util.JwtUtil;
 import cn.hutool.crypto.digest.BCrypt;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户服务实现类
@@ -19,6 +24,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -62,6 +70,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 验证密码
         if (!BCrypt.checkpw(password, user.getPassword())) {
             throw new RuntimeException("用户名或密码错误");
+        }
+
+        // ========== 单账号禁止同时登录（方案2：第二次登录直接拒绝） ==========
+        // 使用 Redis SETNX 作为“登录占用锁”。用户关闭浏览器未退出时，锁会在TTL后自动释放。
+        // 注意：这里用 username+password 校验通过后再加锁。
+        String lockKey = RedisKeyConstant.buildUserLoginLockKey(user.getId());
+        // 登录占用锁 TTL：建议与“无操作自动下线”一致，使用滑动续期（见 JwtInterceptor）
+        // 这里设置为 60 分钟；用户只要持续访问接口，JwtInterceptor 会不断续期。
+        Boolean locked = stringRedisTemplate.opsForValue().setIfAbsent(lockKey, "1", 60, TimeUnit.MINUTES);
+
+        // ===== 调试日志：确认Redis锁是否真正生效 =====
+        try {
+            String existing = stringRedisTemplate.opsForValue().get(lockKey);
+            Long ttlSeconds = stringRedisTemplate.getExpire(lockKey, TimeUnit.SECONDS);
+            System.out.println("[LOGIN_LOCK] username=" + username
+                    + ", userId=" + user.getId()
+                    + ", lockKey=" + lockKey
+                    + ", setIfAbsentResult=" + locked
+                    + ", redisValue=" + existing
+                    + ", ttlSeconds=" + ttlSeconds);
+        } catch (Exception ex) {
+            System.out.println("[LOGIN_LOCK] Redis读取锁信息失败: " + ex.getMessage());
+        }
+
+        if (locked == null || !locked) {
+            throw new RuntimeException("该账号已在线，请先退出");
         }
 
         // 生成JWT Token
@@ -143,6 +177,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         
         // 返回更新后的用户信息
         return this.getById(userId);
+    }
+
+    @Override
+    public void logout(Long userId) {
+        // 释放登录占用锁
+        String lockKey = RedisKeyConstant.buildUserLoginLockKey(userId);
+        stringRedisTemplate.delete(lockKey);
     }
 }
 

@@ -31,9 +31,23 @@ class ApiService {
     // 请求拦截器：添加JWT Token
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+          // 调试日志：检查 token 是否正确设置
+          if (config.url?.includes('/documents') || config.url?.includes('/user')) {
+            console.log('API请求拦截器: 添加Token', {
+              url: config.url,
+              hasToken: !!token,
+              tokenLength: token.length,
+              tokenPrefix: token.substring(0, 20) + '...'
+            });
+          }
+        } else {
+          // 如果没有 token，记录警告
+          if (config.url && !config.url.includes('/login') && !config.url.includes('/register') && !config.url.includes('/captcha')) {
+            console.warn('API请求拦截器: 没有Token', { url: config.url });
+          }
         }
         // 如果是FormData，删除Content-Type，让浏览器自动设置（包括boundary）
         if (config.data instanceof FormData) {
@@ -63,11 +77,38 @@ class ApiService {
           });
         }
         
-        if (error.response?.status === 401) {
-          // Token过期，清除本地存储并跳转登录
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          // Token过期或无效
+          // 检查是否是登录相关的请求，如果是则不清除（可能是登录验证失败）
+          const isAuthRequest = error.config?.url?.includes('/login') || 
+                               error.config?.url?.includes('/register') ||
+                               error.config?.url?.includes('/user/info');
+          
+          // 检查错误消息，如果是"未提供认证Token"，说明请求时没有token
+          // 这可能是登录过程中的时序问题，不应该清除token
+          const errorMessage = error.response?.data?.message || '';
+          const isMissingToken = errorMessage.includes('未提供认证Token') || 
+                               errorMessage.includes('未提供') ||
+                               errorMessage.includes('Missing');
+          
+          if (!isAuthRequest && !isMissingToken) {
+            // 统一退出：后端已做“同账号不能同时登录”锁，遇到真正的401/403时需要释放锁
+            console.warn('API响应拦截器: 认证失败，触发统一退出', {
+              url: error.config?.url,
+              message: errorMessage
+            });
+
+            // 动态导入，避免循环依赖
+            import('@/utils/signOut').then(({ signOut }) => {
+              signOut({ redirectTo: '/login' });
+            });
+          } else {
+            console.warn('API响应拦截器: 认证失败（认证请求或缺少token），不触发统一退出', {
+              url: error.config?.url,
+              message: errorMessage
+            });
+          }
+          // 交由 signOut 统一处理清理和跳转
         }
         return Promise.reject(error);
       }
@@ -114,8 +155,15 @@ class ApiService {
   /**
    * 用户登录
    */
-  async login(data: LoginRequest): Promise<ApiResult<{ token: string; userId: number; username: string; nickname?: string; email?: string }>> {
+  async login(data: LoginRequest): Promise<ApiResult<{ token: string; userId: number; username: string; nickname?: string; email?: string; avatar?: string }>> {
     return this.api.post('/user/login', data);
+  }
+
+  /**
+   * 退出登录（后端释放“登录占用锁”）
+   */
+  async logout(): Promise<ApiResult<void>> {
+    return this.api.post('/user/logout');
   }
 
   /**
@@ -341,7 +389,7 @@ class ApiService {
       {
         responseType: 'blob',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${sessionStorage.getItem('token')}`,
         },
       }
     );
@@ -361,7 +409,7 @@ class ApiService {
       {
         responseType: 'blob',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${sessionStorage.getItem('token')}`,
         },
       }
     );
@@ -381,7 +429,7 @@ class ApiService {
       {
         responseType: 'text',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${sessionStorage.getItem('token')}`,
         },
       }
     );
