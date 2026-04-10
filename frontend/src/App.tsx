@@ -37,7 +37,7 @@ function App() {
   const hasVerifiedRef = useRef(false);
   const lastVerifiedUserIdRef = useRef<number | null>(null);
   const verificationInProgressRef = useRef(false);
-  
+
   useEffect(() => {
     // 如果用户未登录，重置验证标志
     if (!isAuthenticated || !token || !user) {
@@ -46,35 +46,35 @@ function App() {
       verificationInProgressRef.current = false;
       return;
     }
-    
+
     // 如果正在验证中，跳过（防止并发验证）
     if (verificationInProgressRef.current) {
       return;
     }
-    
+
     // 如果已经验证过且用户ID没有变化，跳过
     if (hasVerifiedRef.current && lastVerifiedUserIdRef.current === user.id) {
       return;
     }
-    
+
     // 标记为正在验证
     verificationInProgressRef.current = true;
     hasVerifiedRef.current = true;
     lastVerifiedUserIdRef.current = user.id;
-    
+
     // 保存当前用户ID和token，用于验证
     const currentUserId = user.id;
     const currentToken = token;
-    
+
     console.log('App.tsx: 开始验证用户身份，用户ID:', currentUserId);
-    
+
     apiService.getUserInfo()
       .then((result) => {
         verificationInProgressRef.current = false;
-        
+
         if (result.code === 200 && result.data) {
           const newUser = result.data;
-          
+
           // 关键验证1：检查返回的用户ID是否与当前用户ID一致
           // 如果不一致，说明token是其他用户的，清除所有认证信息
           if (newUser.id !== currentUserId) {
@@ -83,7 +83,7 @@ function App() {
               返回用户ID: newUser.id,
               当前token: currentToken?.substring(0, 20) + '...',
             });
-            
+
             // 立即清除所有认证信息
             // 统一退出（通知后端释放锁 + 清理前端 + 跳转）
             import('@/utils/signOut').then(({ signOut }) => {
@@ -91,7 +91,7 @@ function App() {
             });
             return;
           }
-          
+
           // 关键验证2：检查当前store中的token是否仍然是刚才验证时使用的token
           // 如果token被其他标签页更改了，说明用户可能在其他标签页登录了，需要重新验证
           const { token: currentStoreToken } = useAuthStore.getState();
@@ -101,7 +101,7 @@ function App() {
             lastVerifiedUserIdRef.current = null;
             return; // 返回，让effect重新触发
           }
-          
+
           // 用户ID一致且token未变，更新用户信息（但只在数据真正变化时更新，避免循环）
           const { user: currentUser } = useAuthStore.getState();
           if (!currentUser || JSON.stringify(currentUser) !== JSON.stringify(newUser)) {
@@ -116,7 +116,7 @@ function App() {
           console.warn('App.tsx: 获取用户信息失败，code:', result.code, 'message:', result.message);
           hasVerifiedRef.current = false;
           lastVerifiedUserIdRef.current = null;
-          
+
           // 只有在明确是认证失败时才清除状态
           if (result.code === 401 || result.code === 403) {
             import('@/utils/signOut').then(({ signOut }) => {
@@ -128,7 +128,7 @@ function App() {
       .catch((error) => {
         verificationInProgressRef.current = false;
         console.warn('App.tsx: 获取用户信息失败:', error);
-        
+
         // 如果是401错误（未授权），清除认证信息
         if (error.response?.status === 401 || error.response?.data?.code === 401) {
           console.warn('App.tsx: Token已过期或无效，清除认证信息');
@@ -166,10 +166,10 @@ function App() {
   if (!isInitialized) {
     return (
       <ConfigProvider locale={zhCN}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
           height: '100vh',
           fontSize: '16px'
         }}>
@@ -188,74 +188,74 @@ function App() {
     >
       <div className={`app ${themeMode}-theme`}>
         <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <Routes>
-          <Route
-            path="/login"
-            element={isAuthenticated ? <Navigate to="/documents" replace /> : <Login />}
-          />
-          <Route
-            path="/register"
-            element={isAuthenticated ? <Navigate to="/documents" replace /> : <Register />}
-          />
-          <Route
-            path="/"
-            element={
-              isAuthenticated ? (
-                <MainLayout>
-                  <Home />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/home"
-            element={
-              isAuthenticated ? (
-                <MainLayout>
-                  <Home />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/documents"
-            element={
-              isAuthenticated ? (
-                <MainLayout>
-                  <DocumentList />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/documents/:id"
-            element={isAuthenticated ? <DocumentEditor /> : <Navigate to="/login" replace />}
-          />
-          <Route
-            path="/profile"
-            element={
-              isAuthenticated ? (
-                <MainLayout>
-                  <Profile />
-                </MainLayout>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-        </Routes>
-      </BrowserRouter>
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
+          <Routes>
+            <Route
+              path="/login"
+              element={isAuthenticated ? <Navigate to="/documents" replace /> : <Login />}
+            />
+            <Route
+              path="/register"
+              element={isAuthenticated ? <Navigate to="/documents" replace /> : <Register />}
+            />
+            <Route
+              path="/"
+              element={
+                isAuthenticated ? (
+                  <MainLayout>
+                    <Home />
+                  </MainLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/home"
+              element={
+                isAuthenticated ? (
+                  <MainLayout>
+                    <Home />
+                  </MainLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/documents"
+              element={
+                isAuthenticated ? (
+                  <MainLayout>
+                    <DocumentList />
+                  </MainLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/documents/:id"
+              element={isAuthenticated ? <DocumentEditor /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/profile"
+              element={
+                isAuthenticated ? (
+                  <MainLayout>
+                    <Profile />
+                  </MainLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+          </Routes>
+        </BrowserRouter>
       </div>
     </ConfigProvider>
   );

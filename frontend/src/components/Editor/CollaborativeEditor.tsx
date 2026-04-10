@@ -37,7 +37,19 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   const [cursorPositions, setCursorPositions] = useState<Map<number, { top: number; left: number }>>(new Map());
   const [commentMarkers, setCommentMarkers] = useState<Map<number, { top: number; left: number }>>(new Map());
   const cursorDebounceTimerRef = useRef<NodeJS.Timeout | null>(null); // 光标位置发送防抖定时器
+  /** 上次已成功同步到服务端的文档 Delta（用于中文 IME 组合结束后一次性 diff 补发） */
+  const lastBroadcastedDeltaRef = useRef<InstanceType<typeof Delta> | null>(null);
+  /** 是否处于输入法组合输入（composition）阶段 */
+  const isImeComposingRef = useRef(false);
+  /** compositionend 中已用 diff 补发，跳过后续一次 handleChange 中的增量发送，避免重复 */
+  const skipNextTextChangeSendRef = useRef(false);
+  const imeFlushTimerRef = useRef<number | null>(null);
+  const isLocalChangeRef = useRef(isLocalChange);
   const { currentDocument, updateDocumentContent, updateDocument, onlineUsers, updateUserCursor, comments } = useDocumentStore();
+
+  useEffect(() => {
+    isLocalChangeRef.current = isLocalChange;
+  }, [isLocalChange]);
 
   // Quill工具栏配置 - 扩展格式选项
   const modules = {
@@ -186,6 +198,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           
           // 记录已初始化的内容
           initializedContentRef.current = contentString;
+          lastBroadcastedDeltaRef.current = quill.getContents();
         } else if (currentDocument.content) {
           // 如果是Delta格式，使用setContents（需要是Delta对象）
           try {
@@ -194,6 +207,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               : currentDocument.content;
             quill.setContents(deltaContent, 'silent');
             initializedContentRef.current = contentString;
+            lastBroadcastedDeltaRef.current = quill.getContents();
           } catch (e) {
             console.error('解析Delta内容失败:', e);
           }
@@ -210,6 +224,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
             const delta = quill.clipboard.convert(currentDocument.content);
             quill.setContents(delta, 'silent');
             initializedContentRef.current = contentString;
+            lastBroadcastedDeltaRef.current = quill.getContents();
           }
         } catch (e) {
           console.error('备用初始化方法也失败:', e);
@@ -217,6 +232,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           if (typeof currentDocument.content === 'string') {
             quill.root.innerHTML = currentDocument.content;
             initializedContentRef.current = contentString;
+            lastBroadcastedDeltaRef.current = quill.getContents();
           }
         }
         if (!isInitialized) {
@@ -227,6 +243,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 如果没有内容，也标记为已初始化
       setIsInitialized(true);
       initializedContentRef.current = null;
+      lastBroadcastedDeltaRef.current = quillRef.current.getEditor().getContents();
     }
   }, [currentDocument?.content, isInitialized]);
 
@@ -335,6 +352,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 操作应用后，更新文档内容状态（不触发 onChange）
       const content = quill.root.innerHTML;
       updateDocumentContent(content);
+      lastBroadcastedDeltaRef.current = quill.getContents();
       
       // 更新所有用户的光标位置（延迟执行，确保DOM已更新）
       setTimeout(() => {
@@ -899,6 +917,58 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     return operations;
   }, [currentDocument?.version]);
 
+  // 中文等 IME：组合输入过程中不向服务器发增量 op（避免拼音首字母单独成条、与远端不一致）；
+  // composition 结束后用「上次已同步 Delta」与当前文档做 diff，一次性补发并跳过后续一次重复增量。
+  useEffect(() => {
+    if (!isInitialized || readOnly) return;
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+    const root = quill.root;
+
+    const onCompositionStart = () => {
+      isImeComposingRef.current = true;
+    };
+
+    const onCompositionEnd = () => {
+      isImeComposingRef.current = false;
+      if (imeFlushTimerRef.current != null) {
+        window.clearTimeout(imeFlushTimerRef.current);
+      }
+      imeFlushTimerRef.current = window.setTimeout(() => {
+        imeFlushTimerRef.current = null;
+        const q = quillRef.current?.getEditor();
+        if (!q || !isLocalChangeRef.current) return;
+        const prev = lastBroadcastedDeltaRef.current;
+        const cur = q.getContents();
+        if (!prev) {
+          lastBroadcastedDeltaRef.current = cur;
+          return;
+        }
+        const diff = prev.diff(cur);
+        if (diff.length() > 0) {
+          const operations = convertDeltaToOperations(diff);
+          if (operations.length > 0) {
+            operations.forEach((op) => websocketService.sendOperation(op));
+            // 若本轮已在定时器里补发，则忽略紧随其后的同一次 text-change 增量，避免重复
+            skipNextTextChangeSendRef.current = true;
+          }
+        }
+        lastBroadcastedDeltaRef.current = cur;
+      }, 0);
+    };
+
+    root.addEventListener('compositionstart', onCompositionStart);
+    root.addEventListener('compositionend', onCompositionEnd);
+    return () => {
+      root.removeEventListener('compositionstart', onCompositionStart);
+      root.removeEventListener('compositionend', onCompositionEnd);
+      if (imeFlushTimerRef.current != null) {
+        window.clearTimeout(imeFlushTimerRef.current);
+        imeFlushTimerRef.current = null;
+      }
+    };
+  }, [isInitialized, readOnly, convertDeltaToOperations]);
+
   // 处理文本变化
   const handleChange = useCallback(
     (content: string, delta: any, source: string) => {
@@ -926,20 +996,33 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         websocketService.sendCursorPosition(selection.index);
       }
 
-      // 将Quill Delta转换为操作DTO
+      // 更新本地状态（标记为本地更新，避免触发内容重置）
+      isLocalUpdateRef.current = true;
+      updateDocumentContent(content);
+
+      // Quill 内部与原生 composition 状态：组合输入期间不向服务器发 op，改由 compositionend 后 diff 补发
+      const composing =
+        isImeComposingRef.current === true ||
+        (quill as unknown as { selection?: { composing?: boolean } }).selection?.composing === true;
+      if (composing) {
+        return;
+      }
+
+      // compositionend 的定时补发已发送本轮变更，跳过一次 Quill 紧随其后的 text-change 增量，避免重复
+      if (skipNextTextChangeSendRef.current) {
+        skipNextTextChangeSendRef.current = false;
+        lastBroadcastedDeltaRef.current = quill.getContents();
+        return;
+      }
+
       const operations = convertDeltaToOperations(delta);
-      
-      // 发送操作到服务器
       if (operations.length > 0) {
         console.log('发送操作到服务器:', operations);
         operations.forEach((op) => {
           websocketService.sendOperation(op);
         });
       }
-
-      // 更新本地状态（标记为本地更新，避免触发内容重置）
-      isLocalUpdateRef.current = true;
-      updateDocumentContent(content);
+      lastBroadcastedDeltaRef.current = quill.getContents();
     },
     [isLocalChange, convertDeltaToOperations, updateDocumentContent]
   );
