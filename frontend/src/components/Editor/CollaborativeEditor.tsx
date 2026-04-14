@@ -17,6 +17,14 @@ import './CollaborativeEditor.css';
 
 const Delta = Quill.import('delta');
 
+// 协同编辑调试开关：打印关键时序信息（远程操作/光标过滤/内容同步覆盖）
+const DEBUG_COLLAB = true;
+const debugLog = (...args: any[]) => {
+  if (!DEBUG_COLLAB) return;
+  // eslint-disable-next-line no-console
+  console.log('[COLLAB_DEBUG]', ...args);
+};
+
 interface CollaborativeEditorProps {
   documentId: number;
   userId: number;
@@ -37,6 +45,8 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   const [cursorPositions, setCursorPositions] = useState<Map<number, { top: number; left: number }>>(new Map());
   const [commentMarkers, setCommentMarkers] = useState<Map<number, { top: number; left: number }>>(new Map());
   const cursorDebounceTimerRef = useRef<NodeJS.Timeout | null>(null); // 光标位置发送防抖定时器
+  // 过滤延迟/过期的远程光标消息（避免旧 CURSOR 覆盖新 OPERATION 应用后的光标）
+  const lastRemoteCursorTsRef = useRef<Map<number, number>>(new Map());
   /** 上次已成功同步到服务端的文档 Delta（用于中文 IME 组合结束后一次性 diff 补发） */
   const lastBroadcastedDeltaRef = useRef<InstanceType<typeof Delta> | null>(null);
   /** 是否处于输入法组合输入（composition）阶段 */
@@ -145,6 +155,9 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 如果是本地更新，不需要重新设置内容（避免光标位置丢失）
       if (isInitialized && isLocalUpdateRef.current) {
         // 这是本地更新，不需要重新设置内容
+        debugLog('跳过 content 同步（本地更新标记命中）', {
+          contentLen: contentString?.length,
+        });
         initializedContentRef.current = contentString;
         isLocalUpdateRef.current = false; // 重置标记
         return;
@@ -154,12 +167,15 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 如果内容相同，说明是本地更新导致的，不需要重新设置内容（避免光标位置丢失）
       if (isInitialized) {
         const currentEditorContent = quill.root.innerHTML;
-        // 标准化HTML内容进行比较（去除空白差异）
-        const normalizeHTML = (html: string) => html.replace(/\s+/g, ' ').trim();
-        const normalizedCurrent = normalizeHTML(currentEditorContent);
-        const normalizedNew = normalizeHTML(contentString);
+        // 注意：不要把多个空白归一化（否则“空格删不掉/空格同步异常”会被误判为内容未变化）。
+        // 这里仅做首尾裁剪，保持中间连续空白与末尾空白差异。
+        const normalizedCurrent = currentEditorContent.trim();
+        const normalizedNew = contentString.trim();
         if (normalizedCurrent === normalizedNew) {
           // 内容相同，只是状态更新，不需要重新设置
+          debugLog('跳过 content 同步（内容未变化）', {
+            contentLen: contentString?.length,
+          });
           initializedContentRef.current = contentString;
           return;
         }
@@ -168,6 +184,10 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       try {
         // 如果content是HTML字符串，使用clipboard来正确解析HTML（保留格式）
         if (typeof currentDocument.content === 'string' && currentDocument.content.trim()) {
+          debugLog('执行 setContents（初始化/同步覆盖）', {
+            beforeLen: quill.getText().length,
+            contentLen: contentString.length,
+          });
           // 先清空编辑器
           quill.setContents(new Delta(), 'silent');
           
@@ -205,6 +225,9 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
             const deltaContent = typeof currentDocument.content === 'string' 
               ? JSON.parse(currentDocument.content) 
               : currentDocument.content;
+            debugLog('执行 setContents（Delta 同步覆盖）', {
+              beforeLen: quill.getText().length,
+            });
             quill.setContents(deltaContent, 'silent');
             initializedContentRef.current = contentString;
             lastBroadcastedDeltaRef.current = quill.getContents();
@@ -269,7 +292,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     return cursorPos;
   }, []);
 
-  const applyRemoteOperation = useCallback((operation: OperationDTO) => {
+  const applyRemoteOperation = useCallback((operation: OperationDTO, operationAuthorId: number, remoteTs?: number) => {
     const quill = quillRef.current?.getEditor();
     if (!quill) {
       return;
@@ -279,19 +302,31 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     const currentSelection = quill.getSelection();
     const savedCursorIndex = currentSelection ? currentSelection.index : null;
 
-    // 防止本地变更触发循环 - 立即设置，不使用延迟
-    const wasLocalChange = isLocalChange;
+    // 防止远程 apply 触发本地循环/重置：使用 ref 做“源头一致”
+    const wasLocalChange = isLocalChangeRef.current;
+    isLocalChangeRef.current = false;
     setIsLocalChange(false);
+    // 让内容同步 useEffect 跳过一次，避免刚 apply 完又被重新 set 回去
+    isLocalUpdateRef.current = true;
 
     try {
-      // 获取当前文档长度，用于验证位置
-      const currentLength = quill.getLength() - 1; // Quill 末尾有一个换行符
+      const before = {
+        qLen: quill.getLength(),
+        textLen: quill.getText().length,
+        selection: quill.getSelection()?.index ?? null,
+      };
+      debugLog('applyRemoteOperation 前', { operation, operationAuthorId, remoteTs, ...before });
+
+      // 获取当前文档长度：Quill 的 getLength() 会把末尾 trailing newline 也算进去。
+      // 为了避免“删除最后一个可见字符”时误把 newline 当成要删的字符，这里统一限制到 maxIndex。
+      const currentLength = quill.getLength();
+      const maxIndex = Math.max(0, currentLength - 1); // trailing newline 的索引
       
       // 根据操作类型应用操作
       switch (operation.type) {
         case 'INSERT': {
           // 确保位置有效
-          const position = Math.min(operation.position, currentLength);
+          const position = Math.min(operation.position, maxIndex);
           const delta = new Delta()
             .retain(position)
             .insert(operation.data || '', operation.attributes || {});
@@ -301,7 +336,10 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         }
         case 'DELETE': {
           // 确保位置和长度有效
-          const position = Math.min(operation.position, currentLength);
+          const position = Math.min(operation.position, maxIndex);
+          // 可用长度不能用 (maxIndex - position)，否则当 position==maxIndex 时会变成 0
+          // 导致“删除最后一个可见字符”失败。这里用 currentLength - position，
+          // 保证 position==maxIndex 且 length==1 时仍能删掉最后字符。
           const length = Math.min(operation.length, currentLength - position);
           if (length > 0) {
             const delta = new Delta()
@@ -314,7 +352,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         case 'FORMAT': {
           // 格式化操作
           if (operation.formatType && operation.formatValue !== undefined) {
-            const position = Math.min(operation.position, currentLength);
+            const position = Math.min(operation.position, maxIndex);
             const length = Math.min(operation.length || 1, currentLength - position);
             quill.formatText(position, length, operation.formatType, operation.formatValue, 'api');
           }
@@ -333,61 +371,31 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         }, 0);
       }
       
-      // 转换所有其他用户的光标位置
-      const updatedUsers = onlineUsers.map(user => {
-        if (user.userId !== userId && user.cursorPosition !== undefined && user.cursorPosition !== null) {
-          const transformedPos = transformCursorPosition(user.cursorPosition, operation);
-          return { ...user, cursorPosition: transformedPos };
-        }
-        return user;
-      });
-      
+      const opTs = remoteTs ?? operation.timestamp ?? Date.now();
+
       // 更新store中的用户光标位置
-      updatedUsers.forEach(user => {
-        if (user.userId !== userId && user.cursorPosition !== undefined) {
-          updateUserCursor(user.userId, user.cursorPosition);
-        }
-      });
+      // 关键：lastRemoteCursorTsRef 只应“打戳”发 OPERATION 的那个用户，
+      // 否则可能导致后续 CURSOR（旧/晚到）反复覆盖正确光标。
+      {
+        const prevTs = lastRemoteCursorTsRef.current.get(operationAuthorId) ?? 0;
+        lastRemoteCursorTsRef.current.set(operationAuthorId, Math.max(prevTs, opTs));
+      }
       
       // 操作应用后，更新文档内容状态（不触发 onChange）
       const content = quill.root.innerHTML;
       updateDocumentContent(content);
       lastBroadcastedDeltaRef.current = quill.getContents();
-      
-      // 更新所有用户的光标位置（延迟执行，确保DOM已更新）
-      setTimeout(() => {
-        const editorElement = quill.root;
-        const collaborativeEditor = editorElement.closest('.collaborative-editor');
-        if (!collaborativeEditor) return;
-        
-        const editorRect = editorElement.getBoundingClientRect();
-        const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
-        
-        updatedUsers.forEach((user) => {
-          if (user.userId !== userId && user.cursorPosition !== undefined && user.cursorPosition !== null) {
-            try {
-              const bounds = quill.getBounds(user.cursorPosition, 0);
-              if (bounds) {
-                setCursorPositions((prev) => {
-                  const newMap = new Map(prev);
-                  // 计算相对于 .collaborative-editor 的位置
-                  newMap.set(user.userId, { 
-                    top: bounds.top + editorRect.top - containerRect.top,
-                    left: bounds.left + editorRect.left - containerRect.left
-                  });
-                  return newMap;
-                });
-              }
-            } catch (error) {
-              // 忽略错误，光标位置可能无效
-            }
-          }
-        });
-      }, 10);
+
+      const after = {
+        qLen: quill.getLength(),
+        textLen: quill.getText().length,
+      };
+      debugLog('applyRemoteOperation 后', { operation, ...after });
     } catch (error) {
       console.error('应用远程操作失败:', error, operation);
     } finally {
       // 立即恢复本地变更标志（不使用延迟，避免影响后续操作）
+      isLocalChangeRef.current = wasLocalChange;
       setIsLocalChange(wasLocalChange);
     }
   }, [onlineUsers, userId, updateDocumentContent, isLocalChange, transformCursorPosition, updateUserCursor]);
@@ -531,7 +539,20 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     const handleRemoteOperation = (message: WebSocketMessage) => {
       // 只处理其他用户的操作（后端已经排除了发送者）
       if (message.type === 'OPERATION') {
-        // 确保 data 是 OperationDTO 对象
+        const dataAny = message.data as any;
+
+        // delta 透传（推荐）：优先处理 Quill 原生 Delta，避免 DELETE/末尾删除边界偏一位
+        if (dataAny && dataAny.delta && Array.isArray(dataAny.delta.ops) && dataAny.delta.ops.length > 0) {
+          try {
+            const mergedCursor = (message as any).cursorPosition as number | undefined;
+            applyRemoteDelta(dataAny.delta as { ops: any[] }, message.userId, mergedCursor ?? undefined);
+          } catch (error) {
+            console.error('应用远程 Delta 失败:', error, dataAny.delta);
+          }
+          return;
+        }
+
+        // 否则按 OperationDTO（INSERT/DELETE/RETAIN/FORMAT）处理
         let operation: OperationDTO;
         if (typeof message.data === 'object' && message.data !== null) {
           operation = message.data as OperationDTO;
@@ -547,8 +568,8 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         }
         
         console.log('收到远程操作:', operation, '来自用户:', message.userId);
-        try {
-          applyRemoteOperation(operation);
+          try {
+            applyRemoteOperation(operation, message.userId, message.timestamp);
         } catch (error) {
           console.error('应用远程操作失败:', error);
         }
@@ -558,7 +579,32 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     const handleCursorMove = (message: WebSocketMessage) => {
       if (message.type === 'CURSOR' && message.userId !== userId) {
         const cursorData = message.data as { position: number };
-        const position = cursorData.position;
+        const positionRaw = cursorData.position;
+        const quill = quillRef.current?.getEditor();
+        // Quill 的 getLength() 包含 trailing newline；cursor 的合法最大索引用 getLength()-1
+        const maxIndex = quill ? Math.max(0, quill.getLength() - 1) : undefined;
+        const position =
+          maxIndex !== undefined && positionRaw !== undefined && positionRaw !== null
+            ? Math.min(Math.max(0, positionRaw), maxIndex)
+            : positionRaw;
+        const incomingTs = message.timestamp ?? 0;
+        const lastTs = lastRemoteCursorTsRef.current.get(message.userId) ?? 0;
+
+        // 如果 CURSOR 时间戳与最近一次 OPERATION 的打戳相等，也应视为陈旧，
+        // 否则会出现“同一次删除/插入后的旧光标覆盖新结果”的错觉。
+        const shouldIgnore = incomingTs > 0 && incomingTs <= lastTs;
+        debugLog('CURSOR 收到', {
+          from: message.userId,
+          position,
+          incomingTs,
+          lastTs,
+          ignore: shouldIgnore,
+        });
+
+        // 旧消息不处理：避免 CURSOR 晚到覆盖了刚被 OPERATION 推进/回退后的光标
+        if (shouldIgnore) {
+          return;
+        }
         
         // 验证位置有效性
         if (position === undefined || position === null || position < 0) {
@@ -567,6 +613,9 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         }
         
         // 更新store中的光标位置
+        if (incomingTs > 0) {
+          lastRemoteCursorTsRef.current.set(message.userId, incomingTs);
+        }
         updateUserCursor(message.userId, position);
         
         // 使用统一的更新函数更新光标像素位置
@@ -917,6 +966,83 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     return operations;
   }, [currentDocument?.version]);
 
+  // 远程 Quill Delta 透传：比“手写 OperationDTO”更能保证空格/末尾删除等边界一致
+  const applyRemoteDelta = useCallback((
+    deltaPayload: { ops: any[] },
+    operationAuthorId: number,
+    mergedCursor?: number
+  ) => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill || !deltaPayload?.ops?.length) return;
+
+    const delta = new Delta(deltaPayload);
+    const opChain = convertDeltaToOperations(delta);
+
+    const currentSelection = quill.getSelection();
+    const savedCursorIndex = currentSelection ? currentSelection.index : null;
+
+    // 防止远程应用触发本地 onChange 循环
+    const wasLocalChange = isLocalChangeRef.current;
+    isLocalChangeRef.current = false;
+    setIsLocalChange(false);
+
+    try {
+      quill.updateContents(delta, 'api');
+
+      const content = quill.root.innerHTML;
+      isLocalUpdateRef.current = true;
+      updateDocumentContent(content);
+      lastBroadcastedDeltaRef.current = quill.getContents();
+
+      const docLenAfter = quill.getLength() - 1;
+      const clamp = (idx: number) => Math.min(Math.max(0, idx), docLenAfter);
+
+      // 恢复自己光标
+      if (savedCursorIndex !== null) {
+        let localAfter = savedCursorIndex;
+        for (const op of opChain) {
+          localAfter = transformCursorPosition(localAfter, op);
+        }
+        setTimeout(() => {
+          quill.setSelection(clamp(localAfter), 0, 'api');
+        }, 0);
+      }
+
+      // 更新其他用户光标
+      const updatedUsers = onlineUsers.map((user) => {
+        if (user.userId === userId || user.cursorPosition === undefined || user.cursorPosition === null) {
+          return user;
+        }
+        if (user.userId === operationAuthorId && mergedCursor !== undefined && mergedCursor !== null) {
+          return { ...user, cursorPosition: clamp(mergedCursor) };
+        }
+        let pos = user.cursorPosition;
+        for (const op of opChain) {
+          pos = transformCursorPosition(pos, op);
+        }
+        return { ...user, cursorPosition: clamp(pos) };
+      });
+
+      updatedUsers.forEach((u) => {
+        if (u.userId !== userId && u.cursorPosition !== undefined) {
+          updateUserCursor(u.userId, u.cursorPosition);
+        }
+      });
+    } catch (error) {
+      console.error('应用远程 Delta 失败:', error, deltaPayload);
+    } finally {
+      isLocalChangeRef.current = wasLocalChange;
+      setIsLocalChange(wasLocalChange);
+    }
+  }, [
+    onlineUsers,
+    userId,
+    updateDocumentContent,
+    transformCursorPosition,
+    updateUserCursor,
+    convertDeltaToOperations,
+  ]);
+
   // 中文等 IME：组合输入过程中不向服务器发增量 op（避免拼音首字母单独成条、与远端不一致）；
   // composition 结束后用「上次已同步 Delta」与当前文档做 diff，一次性补发并跳过后续一次重复增量。
   useEffect(() => {
@@ -1010,9 +1136,17 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
 
       // compositionend 的定时补发已发送本轮变更，跳过一次 Quill 紧随其后的 text-change 增量，避免重复
       if (skipNextTextChangeSendRef.current) {
+        // 关键：如果紧随 compositionend 的增量里包含 DELETE，
+        // 说明用户可能已经在“拼音输入刚结束后立刻删除”，这时不能跳过，
+        // 否则会出现“中文删不掉但数字删得掉”的情况。
+        const ops = convertDeltaToOperations(delta);
+        const hasDelete = ops.some((op) => op.type === 'DELETE');
+
         skipNextTextChangeSendRef.current = false;
-        lastBroadcastedDeltaRef.current = quill.getContents();
-        return;
+        if (!hasDelete) {
+          lastBroadcastedDeltaRef.current = quill.getContents();
+          return;
+        }
       }
 
       const operations = convertDeltaToOperations(delta);
