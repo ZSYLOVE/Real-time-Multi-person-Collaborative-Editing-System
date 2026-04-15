@@ -3,58 +3,92 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f6f7fb;
   padding: 20px;
-  animation: fadeIn 0.5s ease-in;
+  animation: fadeIn 0.35s ease-in;
+  position: relative;
+  overflow: hidden;
+}
+
+.register-container::before {
+  content: '';
+  position: absolute;
+  inset: -60px;
+  background-image: url("../assets/bg.jpeg");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.95;
+  z-index: 0;
+  animation: registerBgFloat 12s ease-in-out infinite;
+}
+
+.register-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(246, 247, 251, 0.08);
+  z-index: 0;
+  display: none;
+}
+
+.register-content {
+  position: relative;
+  z-index: 1;
 }
 
 .register-content {
   display: flex;
   align-items: center;
-  gap: 60px;
+  gap: 32px;
   max-width: 900px;
   width: 100%;
-  animation: slideInRight 0.5s ease-out;
+  animation: fadeIn 0.35s ease-in;
 }
 
 .register-react-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 400px;
-  height: 400px;
+  width: 220px;
+  height: 220px;
   flex-shrink: 0;
-  animation: breathe 2.5s ease-in-out infinite;
+  animation: none;
 }
 
 .register-react-icon svg {
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 0 20px rgba(97, 218, 251, 0.6));
+  filter: none;
+  opacity: 0.9;
 }
 
 .register-card {
   width: 400px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
-  animation: slideInLeft 0.5s ease-out;
+  animation: fadeIn 0.35s ease-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.register-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+}
+
+.register-card .ant-card-head,
+.register-card .ant-card-body {
+  background: transparent !important;
 }
 
 .register-card .ant-card-head-title {
   text-align: center;
   font-size: 24px;
   font-weight: 600;
-}
-
-@keyframes breathe {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
 }
 
 @keyframes fadeIn {
@@ -66,38 +100,41 @@
   }
 }
 
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* 深色模式：不使用渐变，保证可读性 */
+.dark-theme .register-container {
+  background: #0f172a;
 }
 
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.dark-theme .register-container::after {
+  background: rgba(15, 23, 42, 0.22);
+  display: none;
+}
+
+.dark-theme .register-container::before {
+  opacity: 0.65;
+  filter: saturate(1.1) brightness(0.9);
+}
+
+.dark-theme .register-card {
+  background: rgba(17, 24, 39, 0.35);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.dark-theme .register-card:hover {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.48);
 }
 
 /* 响应式设计 */
 @media (max-width: 992px) {
   .register-content {
     flex-direction: column;
-    gap: 40px;
+    gap: 24px;
   }
 
   .register-react-icon {
-    width: 300px;
-    height: 300px;
+    width: 180px;
+    height: 180px;
   }
 
   .register-card {
@@ -107,9 +144,24 @@
 }
 
 @media (max-width: 768px) {
-  .register-react-icon {
-    width: 200px;
-    height: 200px;
+  .register-react-icon { display: none; }
+}
+
+@keyframes registerBgFloat {
+  0% {
+    transform: translate3d(-26px, 18px, 0) scale(1.06);
+  }
+  50% {
+    transform: translate3d(18px, -16px, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-26px, 18px, 0) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .register-container::before {
+    animation: none;
   }
 }
 

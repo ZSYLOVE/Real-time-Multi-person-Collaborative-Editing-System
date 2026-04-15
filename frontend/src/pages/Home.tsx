@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import useAuthStore from '@/stores/authStore';
 import type { Document } from '@/types';
+import dayjs from 'dayjs';
 import './Home.css';
 
 const { Title, Paragraph } = Typography;
@@ -95,20 +96,17 @@ const Home: React.FC = () => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const parsed = dayjs(dateString, 'YYYY-MM-DD HH:mm:ss', 'zh-cn', true);
+    const date = parsed.isValid() ? parsed : dayjs(dateString);
+    if (!date.isValid()) return dateString;
 
-    if (days === 0) {
-      return '今天';
-    } else if (days === 1) {
-      return '昨天';
-    } else if (days < 7) {
-      return `${days}天前`;
-    } else {
-      return date.toLocaleDateString('zh-CN');
-    }
+    const now = dayjs();
+    const diffDays = now.startOf('day').diff(date.startOf('day'), 'day');
+
+    if (diffDays === 0) return `今天 ${date.format('HH:mm')}`;
+    if (diffDays === 1) return `昨天 ${date.format('HH:mm')}`;
+    if (diffDays < 7) return `${diffDays}天前 ${date.format('HH:mm')}`;
+    return date.format('YYYY-MM-DD HH:mm');
   };
 
   const recentDocuments = documents.slice(0, 5);
@@ -199,41 +197,43 @@ const Home: React.FC = () => {
             暂无文档，<Button type="link" onClick={handleCreateDocument}>创建第一个文档</Button>
           </div>
         ) : (
-          <List
-            dataSource={recentDocuments}
-            renderItem={(doc) => (
-              <List.Item
-                className="recent-doc-item"
-                actions={[
-                  <Button
-                    key="edit"
-                    type="primary"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => navigate(`/documents/${doc.id}`)}
-                    className="recent-doc-edit-btn"
-                  >
-                    编辑
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  title={
-                    <Space wrap>
-                      <span className="doc-title">{doc.title}</span>
-                      {doc.isShared && <Tag color="blue" className="doc-shared-tag">共享</Tag>}
-                    </Space>
-                  }
-                  description={
-                    <Space wrap split={<span>•</span>} className="doc-meta">
-                      <span>版本: {doc.version}</span>
-                      <span>更新于: {formatDate(doc.updatedAt || doc.createdAt)}</span>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
+          <div className="home-recent-docs-list-scroll">
+            <List
+              dataSource={recentDocuments}
+              renderItem={(doc) => (
+                <List.Item
+                  className="recent-doc-item"
+                  actions={[
+                    <Button
+                      key="edit"
+                      type="primary"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => navigate(`/documents/${doc.id}`)}
+                      className="recent-doc-edit-btn"
+                    >
+                      编辑
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <Space wrap>
+                        <span className="doc-title">{doc.title}</span>
+                        {doc.isShared && <Tag color="blue" className="doc-shared-tag">共享</Tag>}
+                      </Space>
+                    }
+                    description={
+                      <Space wrap split={<span>•</span>} className="doc-meta">
+                        <span>版本: {doc.version}</span>
+                        <span>更新于: {formatDate(doc.updatedAt || doc.createdAt)}</span>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </div>
         )}
       </Card>
     </div>

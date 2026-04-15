@@ -23,7 +23,15 @@ export interface OperationDTO {
 }
 
 // WebSocket消息类型
-export type WebSocketMessageType = 'OPERATION' | 'CURSOR' | 'COMMENT' | 'PERMISSION' | 'JOIN' | 'LEAVE' | 'DOCUMENT_UPDATED';
+export type WebSocketMessageType =
+  | 'OPERATION'
+  | 'CURSOR'
+  | 'COMMENT'
+  | 'PERMISSION'
+  | 'JOIN'
+  | 'LEAVE'
+  | 'DOCUMENT_UPDATED'
+  | 'DOCUMENT_TITLE_UPDATED';
 
 // WebSocket消息
 export interface WebSocketMessage {

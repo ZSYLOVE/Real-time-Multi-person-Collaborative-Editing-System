@@ -732,6 +732,21 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       }
     };
 
+    const handleDocumentTitleUpdate = (message: WebSocketMessage) => {
+      if (message.type !== 'DOCUMENT_TITLE_UPDATED') return;
+      const newTitle = message.data?.title;
+      if (typeof newTitle !== 'string') return;
+
+      // 只更新当前正在编辑的文档标题
+      const latestDoc = useDocumentStore.getState().currentDocument;
+      if (!latestDoc || latestDoc.id !== documentId) return;
+
+      updateDocument({
+        ...latestDoc,
+        title: newTitle,
+      });
+    };
+
     // 检查WebSocket连接状态，如果未连接则等待
     const setupWebSocket = async () => {
       let retries = 0;
@@ -752,6 +767,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       websocketService.onMessage('JOIN', handleUserJoin);
       websocketService.onMessage('LEAVE', handleUserLeave);
       websocketService.onMessage('DOCUMENT_UPDATED', handleDocumentUpdate);
+      websocketService.onMessage('DOCUMENT_TITLE_UPDATED', handleDocumentTitleUpdate);
 
       // 加入文档编辑（等待连接完全建立）
       try {
@@ -825,6 +841,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       websocketService.offMessage('JOIN', handleUserJoin);
       websocketService.offMessage('LEAVE', handleUserLeave);
       websocketService.offMessage('DOCUMENT_UPDATED', handleDocumentUpdate);
+      websocketService.offMessage('DOCUMENT_TITLE_UPDATED', handleDocumentTitleUpdate);
       websocketService.leaveDocument(documentId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

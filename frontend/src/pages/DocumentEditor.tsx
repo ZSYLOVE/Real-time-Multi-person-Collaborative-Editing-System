@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout, Button, message, Spin, Dropdown } from 'antd';
-import { ArrowLeftOutlined, DownloadOutlined, FilePdfOutlined, FileWordOutlined, FileTextOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DownloadOutlined, FileWordOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { apiService } from '@/services/api';
 import useDocumentStore from '@/stores/documentStore';
@@ -107,7 +107,7 @@ const DocumentEditor: React.FC = () => {
   };
 
   // 导出文档
-  const handleExport = async (format: 'pdf' | 'word' | 'markdown') => {
+  const handleExport = async (format: 'word' | 'markdown') => {
     if (!documentId || !currentDocument) {
       message.error('文档信息不完整');
       return;
@@ -119,10 +119,6 @@ const DocumentEditor: React.FC = () => {
       let fileName: string;
 
       switch (format) {
-        case 'pdf':
-          blob = await apiService.exportPDF(documentId);
-          fileName = `${currentDocument.title || '未命名文档'}.pdf`;
-          break;
         case 'word':
           blob = await apiService.exportWord(documentId);
           fileName = `${currentDocument.title || '未命名文档'}.docx`;
@@ -157,12 +153,6 @@ const DocumentEditor: React.FC = () => {
 
   // 导出菜单项
   const exportMenuItems: MenuProps['items'] = [
-    {
-      key: 'pdf',
-      icon: <FilePdfOutlined />,
-      label: '导出为PDF',
-      onClick: () => handleExport('pdf'),
-    },
     {
       key: 'word',
       icon: <FileWordOutlined />,

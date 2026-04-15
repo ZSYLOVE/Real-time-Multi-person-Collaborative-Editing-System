@@ -248,6 +248,34 @@ class ApiService {
     return this.api.delete(`/documents/${id}`, { params: { userId } });
   }
 
+  /**
+   * 修改文档标题
+   */
+  async updateDocumentTitle(documentId: number, title: string): Promise<ApiResult<void>> {
+    return this.api.put(`/documents/${documentId}/title`, { title });
+  }
+
+  /**
+   * 恢复已删除文档（回收站）
+   */
+  async restoreDocument(documentId: number): Promise<ApiResult<void>> {
+    return this.api.post(`/documents/${documentId}/restore`);
+  }
+
+  /**
+   * 获取当前用户的已删除文档列表
+   */
+  async getDeletedDocuments(): Promise<ApiResult<Document[]>> {
+    return this.api.get(`/documents/deleted`);
+  }
+
+  /**
+   * 彻底删除文档（不可恢复）
+   */
+  async forceDeleteDocument(documentId: number): Promise<ApiResult<void>> {
+    return this.api.delete(`/documents/${documentId}/force`);
+  }
+
   // ========== 权限相关 ==========
 
   /**
@@ -375,26 +403,6 @@ class ApiService {
   }
 
   // ========== 导出相关 ==========
-
-  /**
-   * 导出PDF
-   */
-  async exportPDF(documentId: number): Promise<Blob> {
-    // 直接使用axios，绕过响应拦截器（因为导出返回的是blob，不是JSON）
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-    const baseURL = apiBaseUrl ? `${apiBaseUrl}/api` : '/api';
-    
-    const response = await axios.get(
-      `${baseURL}/export/pdf/${documentId}`,
-      {
-        responseType: 'blob',
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('token')}`,
-        },
-      }
-    );
-    return response.data;
-  }
 
   /**
    * 导出Word

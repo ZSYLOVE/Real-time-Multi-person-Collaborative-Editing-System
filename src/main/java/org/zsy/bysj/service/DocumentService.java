@@ -50,6 +50,26 @@ public interface DocumentService {
      * 删除文档
      */
     void deleteDocument(Long documentId, Long userId);
+
+    /**
+     * 修改文档标题（仅管理员可改）
+     */
+    void updateDocumentTitle(Long documentId, String title, Long userId);
+
+    /**
+     * 恢复已删除的文档（逻辑删除可恢复）
+     */
+    void restoreDocument(Long documentId, Long userId);
+
+    /**
+     * 获取当前用户的“已删除文档”（回收站）
+     */
+    List<Document> getDeletedDocuments(Long userId);
+
+    /**
+     * 彻底删除文档（不可恢复）
+     */
+    void forceDeleteDocument(Long documentId, Long userId);
     
     /**
      * 创建文档版本快照

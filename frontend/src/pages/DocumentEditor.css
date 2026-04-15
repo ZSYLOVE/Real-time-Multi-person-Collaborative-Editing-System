@@ -24,14 +24,16 @@
   align-items: center;
   gap: 16px;
   flex: 1;
-  min-width: 0; /* 允许缩小 */
+  min-width: 0;
+  /* 允许缩小 */
 }
 
 .document-editor-header .header-right {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-shrink: 0; /* 按钮区域不缩小 */
+  flex-shrink: 0;
+  /* 按钮区域不缩小 */
 }
 
 .document-editor-header h2 {
@@ -42,7 +44,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
-  min-width: 0; /* 允许标题缩小 */
+  min-width: 0;
+  /* 允许标题缩小 */
 }
 
 .document-editor-content {
@@ -127,19 +130,19 @@
     grid-template-rows: auto auto;
     gap: 12px;
   }
-  
+
   .editor-sidebar-section {
     position: static;
     max-height: none;
     flex-direction: row;
     gap: 12px;
   }
-  
+
   .online-users-wrapper {
     flex: 1 1 50%;
     min-height: 200px;
   }
-  
+
   .version-history-wrapper {
     flex: 1 1 50%;
     min-height: 200px;
@@ -184,37 +187,37 @@
     padding: 8px;
     min-height: calc(100vh - 56px);
   }
-  
+
   .editor-layout-container {
     gap: 8px;
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
   }
-  
+
   .editor-main-section {
     gap: 8px;
     order: 1;
   }
-  
+
   .editor-wrapper {
     min-height: 300px;
   }
-  
+
   .comment-wrapper {
     min-height: 200px;
   }
-  
+
   .editor-sidebar-section {
     flex-direction: column;
     gap: 8px;
     order: 2;
   }
-  
+
   .online-users-wrapper {
     min-height: 150px;
     max-height: 200px;
   }
-  
+
   .version-history-wrapper {
     min-height: 150px;
     max-height: 200px;
@@ -236,7 +239,8 @@
   }
 
   .document-editor-header .header-left .ant-btn span {
-    display: none; /* 隐藏按钮文字，只显示图标 */
+    display: none;
+    /* 隐藏按钮文字，只显示图标 */
   }
 
   .document-editor-header h2 {
@@ -250,35 +254,36 @@
   }
 
   .document-editor-header .header-right .ant-btn span {
-    display: none; /* 隐藏按钮文字，只显示图标 */
+    display: none;
+    /* 隐藏按钮文字，只显示图标 */
   }
 
   .document-editor-content {
     padding: 6px;
     min-height: calc(100vh - 48px);
   }
-  
+
   .editor-layout-container {
     gap: 6px;
   }
-  
+
   .editor-main-section {
     gap: 6px;
   }
-  
+
   .editor-wrapper {
     min-height: 250px;
   }
-  
+
   .comment-wrapper {
     min-height: 180px;
   }
-  
+
   .online-users-wrapper {
     min-height: 120px;
     max-height: 150px;
   }
-  
+
   .version-history-wrapper {
     min-height: 120px;
     max-height: 150px;
@@ -315,4 +320,3 @@
 .dark-theme .editor-layout-container {
   color: rgba(255, 255, 255, 0.85);
 }
-

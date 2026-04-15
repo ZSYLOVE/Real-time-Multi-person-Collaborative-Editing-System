@@ -272,6 +272,7 @@ const Login: React.FC = () => {
               onRefresh={() => {
                 setCaptchaValue('');
               }}
+              autoRefreshIntervalMs={60000}
             />
           </Form.Item>
 

@@ -924,6 +924,16 @@ public class ExportServiceImpl implements ExportService {
                 return "FangSong";
             case "microsoft-yahei":
                 return "Microsoft YaHei";
+            // 兼容 Quill/HTML 中可能出现的通用字体别名（导出到 Word 时需要映射为实际可用字体）
+            case "sans-serif":
+                return "Arial";
+            case "serif":
+                return "Times New Roman";
+            case "monospace":
+                return "Courier New";
+            case "normal":
+                // 你的前端中文默认字体通常是宋体/SimSun，这里做一个稳妥映射
+                return "SimSun";
             default:
                 return quillFontName;
         }
@@ -974,43 +984,53 @@ public class ExportServiceImpl implements ExportService {
             // 创建支持中文的字体（优先使用嵌入字体以确保跨平台兼容性）
             BaseFont baseFont = null;
                 String osName = System.getProperty("os.name").toLowerCase();
+
+            // 优先使用 iText 内置 CJK 字体（比自定义 TTF + Unicode 编码更稳定）
+            try {
+                baseFont = BaseFont.createFont("STSong-Light", BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
+            } catch (Exception ignore) {
+                // 失败则继续走下面的系统字体探测
+            }
             
             // 尝试多种字体方案，优先使用系统字体
             java.util.List<String> fontPaths = new java.util.ArrayList<>();
             
-                if (osName.contains("windows")) {
-                fontPaths.add("C:/Windows/Fonts/simsun.ttc,1");
+            if (osName.contains("windows")) {
+                // Windows 上优先选择明确的 TrueType 字体；避免 ttc 索引导致 iText 误判字体类型
                 fontPaths.add("C:/Windows/Fonts/simhei.ttf");
-                fontPaths.add("C:/Windows/Fonts/msyh.ttc,0");
+                fontPaths.add("C:/Windows/Fonts/simsun.ttc");
+                fontPaths.add("C:/Windows/Fonts/msyh.ttc");
             } else if (osName.contains("mac")) {
-                fontPaths.add("/System/Library/Fonts/STHeiti Light.ttc,0");
-                fontPaths.add("/System/Library/Fonts/PingFang.ttc,0");
+                // macOS 上优先 Arial Unicode.ttf（覆盖面更好），再兜底中西文字体
                 fontPaths.add("/Library/Fonts/Arial Unicode.ttf");
                 fontPaths.add("/System/Library/Fonts/Supplemental/Arial Unicode.ttf");
-                } else {
+                fontPaths.add("/System/Library/Fonts/STHeiti Light.ttc");
+                fontPaths.add("/System/Library/Fonts/PingFang.ttc");
+            } else {
                 // Linux系统
                 fontPaths.add("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc");
                 fontPaths.add("/usr/share/fonts/truetype/arphic/uming.ttc");
             }
             
             // 尝试使用系统字体文件
-            for (String fontPath : fontPaths) {
-                try {
-                    baseFont = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                    break;
-                } catch (Exception e) {
-                    // 继续尝试下一个字体
+            if (baseFont == null) {
+                for (String fontPath : fontPaths) {
+                    try {
+                        baseFont = BaseFont.createFont(fontPath, "UnicodeBig", BaseFont.EMBEDDED);
+                        break;
+                    } catch (Exception e) {
+                        // 继续尝试下一个字体
+                    }
                 }
             }
             
             // 如果系统字体都失败，尝试使用iText内置字体名称
             if (baseFont == null) {
                 try {
-                    baseFont = BaseFont.createFont("STSong-Light", "UniGB-UCS2-H", BaseFont.NOT_EMBEDDED);
+                    baseFont = BaseFont.createFont("STSong-Light", BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
                 } catch (Exception e) {
                     try {
-                        // 使用Identity-H编码（支持Unicode，但可能显示为方块如果字体不支持）
-                        baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
+                        baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
                     } catch (Exception e2) {
                         // 最后的备选方案
                         baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
@@ -1041,6 +1061,7 @@ public class ExportServiceImpl implements ExportService {
                     float currentIndent = 0;
                     String currentAlign = "left";
                     int currentIndentLevel = 0;
+                    boolean addedSomething = false; // 用于兜底：避免解析失败导致 PDF 空白
                     
                     for (int i = 0; i < formattedTexts.size(); i++) {
                         FormattedText ft = formattedTexts.get(i);
@@ -1098,12 +1119,14 @@ public class ExportServiceImpl implements ExportService {
                                     imagePara.add(image);
                                     imagePara.setAlignment(com.itextpdf.text.Element.ALIGN_CENTER);
                                     pdfDoc.add(imagePara);
+                                    addedSomething = true;
                                 }
                             } catch (Exception e) {
                                 // 图片加载失败，添加文本说明
                                 Font imageFont = new Font(baseFont, 10, Font.ITALIC);
                                 Paragraph imagePara = new Paragraph("[图片: " + (ft.text != null ? ft.text : "加载失败") + "]", imageFont);
                                 pdfDoc.add(imagePara);
+                                addedSomething = true;
                             }
                             continue;
                         }
@@ -1120,7 +1143,7 @@ public class ExportServiceImpl implements ExportService {
                             BaseFont headerBaseFont = baseFont;
                             if (ft.fontFamily != null && !ft.fontFamily.isEmpty()) {
                                 try {
-                                    headerBaseFont = BaseFont.createFont(ft.fontFamily, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
+                                    headerBaseFont = BaseFont.createFont(ft.fontFamily, "UnicodeBig", BaseFont.NOT_EMBEDDED);
                                 } catch (Exception e) {
                                     headerBaseFont = baseFont;
                                 }
@@ -1175,12 +1198,16 @@ public class ExportServiceImpl implements ExportService {
                             headerPara.setSpacingAfter(10);
                             headerPara.setIndentationLeft(ft.indent * 20);
                             pdfDoc.add(headerPara);
+                            addedSomething = true;
                             continue;
                         }
                         
                         // 处理代码块
                         if (ft.isCodeBlock) {
-                            BaseFont courierFont = BaseFont.createFont(BaseFont.COURIER, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
+                            // 注意：这里不要使用 UniGB-UCS2-H/Identity-H 这类 CJK encoding 字符串，
+                            // 某些运行环境下会导致 UnsupportedCharsetException。
+                            // 代码块主要是纯文本，直接复用前面用于中文的 baseFont 更稳。
+                            BaseFont courierFont = baseFont;
                             
                             // 确定字体大小
                             float codeFontSize = 10;
@@ -1229,6 +1256,7 @@ public class ExportServiceImpl implements ExportService {
                             
                             codePara.setIndentationLeft(20 + ft.indent * 20);
                             pdfDoc.add(codePara);
+                            addedSomething = true;
                             continue;
                         }
                         
@@ -1254,7 +1282,7 @@ public class ExportServiceImpl implements ExportService {
                             BaseFont quoteBaseFont = baseFont;
                             if (ft.fontFamily != null && !ft.fontFamily.isEmpty()) {
                                 try {
-                                    quoteBaseFont = BaseFont.createFont(ft.fontFamily, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
+                                    quoteBaseFont = BaseFont.createFont(ft.fontFamily, "UnicodeBig", BaseFont.NOT_EMBEDDED);
                                 } catch (Exception e) {
                                     quoteBaseFont = baseFont;
                                 }
@@ -1309,6 +1337,7 @@ public class ExportServiceImpl implements ExportService {
                             quotePara.setIndentationLeft(20 + ft.indent * 20);
                             quotePara.setIndentationRight(20);
                             pdfDoc.add(quotePara);
+                            addedSomething = true;
                             continue;
                         }
                         
@@ -1318,6 +1347,7 @@ public class ExportServiceImpl implements ExportService {
                             Paragraph videoPara = new Paragraph("[视频: " + ft.videoUrl + "]", videoFont);
                             videoPara.setAlignment(com.itextpdf.text.Element.ALIGN_LEFT);
                             pdfDoc.add(videoPara);
+                            addedSomething = true;
                             continue;
                         }
                         
@@ -1374,7 +1404,7 @@ public class ExportServiceImpl implements ExportService {
                             BaseFont listBaseFont = baseFont;
                             if (ft.fontFamily != null && !ft.fontFamily.isEmpty()) {
                                 try {
-                                    listBaseFont = BaseFont.createFont(ft.fontFamily, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
+                                    listBaseFont = BaseFont.createFont(ft.fontFamily, "UnicodeBig", BaseFont.NOT_EMBEDDED);
                                 } catch (Exception e) {
                                     listBaseFont = baseFont;
                                 }
@@ -1425,6 +1455,7 @@ public class ExportServiceImpl implements ExportService {
                             }
                             
                             pdfDoc.add(listPara);
+                            addedSomething = true;
                             continue;
                         }
                         
@@ -1500,7 +1531,7 @@ public class ExportServiceImpl implements ExportService {
                         if (ft.fontFamily != null && !ft.fontFamily.isEmpty()) {
                             try {
                                 // 尝试创建指定字体
-                                textBaseFont = BaseFont.createFont(ft.fontFamily, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
+                                textBaseFont = BaseFont.createFont(ft.fontFamily, "UnicodeBig", BaseFont.NOT_EMBEDDED);
                             } catch (Exception e) {
                                 // 如果失败，使用默认字体
                                 textBaseFont = baseFont;
@@ -1566,6 +1597,9 @@ public class ExportServiceImpl implements ExportService {
                         // 如果需要更精确的 RTL 支持，可以使用 PdfChunk 的 setTextRise 或其他方法
                         
                         currentPara.add(chunk);
+                        if (ft.text != null && !ft.text.trim().isEmpty()) {
+                            addedSomething = true;
+                        }
                     }
                     
                     // 添加最后一个段落
@@ -1573,10 +1607,17 @@ public class ExportServiceImpl implements ExportService {
                         currentPara.setAlignment(currentAlignment);
                         currentPara.setIndentationLeft(currentIndent);
                         pdfDoc.add(currentPara);
-                    } else if (formattedTexts.isEmpty()) {
+                    }
+                    
+                    // 兜底：如果解析到的内容没有实际写入，避免空白 PDF
+                    if (!addedSomething) {
+                        String content = parseDocumentContent(htmlContent);
+                        if (content == null || content.trim().isEmpty()) {
+                            content = "（文档内容为空）";
+                        }
                         Font contentFont = new Font(baseFont, 12, Font.NORMAL);
-                        Paragraph emptyPara = new Paragraph("（文档内容为空）", contentFont);
-                        pdfDoc.add(emptyPara);
+                        Paragraph contentPara = new Paragraph(content, contentFont);
+                        pdfDoc.add(contentPara);
                     }
                 } else {
                     // 非HTML格式，使用纯文本

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.zsy.bysj.algorithm.OTAlgorithm;
 import org.zsy.bysj.algorithm.Operation;
 import org.zsy.bysj.mapper.DocumentMapper;
+import org.zsy.bysj.mapper.CommentMapper;
 import org.zsy.bysj.mapper.DocumentOperationMapper;
 import org.zsy.bysj.mapper.DocumentVersionMapper;
 import org.zsy.bysj.model.Document;
@@ -38,6 +39,9 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Autowired
     private DocumentVersionMapper documentVersionMapper;
+
+    @Autowired
+    private CommentMapper commentMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -101,6 +105,10 @@ public class DocumentServiceImpl implements DocumentService {
             }
         }
         
+        // 已删除文档不应对外可见/可编辑（is_deleted 可能是 Boolean 或 0/1）
+        if (document != null && document.getIsDeleted() != null && document.getIsDeleted()) {
+            return null;
+        }
         return document;
     }
 
@@ -245,10 +253,97 @@ public class DocumentServiceImpl implements DocumentService {
         if (document == null || !document.getCreatorId().equals(userId)) {
             throw new RuntimeException("无权删除该文档");
         }
-        
-        documentMapper.deleteById(documentId);
-        
+
+        // 逻辑删除：避免物理删除导致无法恢复
+        UpdateWrapper<Document> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", documentId)
+                // 与 MyBatis-Plus @TableLogic 常见落库值保持一致（0/1）
+                .set("is_deleted", 1)
+                .set("updated_at", LocalDateTime.now());
+        documentMapper.update(null, updateWrapper);
+
+        // 删除后校验（便于定位“回收站为空”问题）
+        try {
+            Document after = documentMapper.selectById(documentId);
+            System.out.println("deleteDocument 校验: documentId=" + documentId + ", isDeleted=" + (after != null ? after.getIsDeleted() : null));
+        } catch (Exception ignore) {
+            // 不影响主流程
+        }
+
         // 清除缓存
+        redisTemplate.delete(RedisKeyConstant.buildDocumentCacheKey(documentId));
+    }
+
+    @Override
+    @Transactional
+    public void updateDocumentTitle(Long documentId, String title, Long userId) {
+        if (!permissionService.hasPermission(documentId, userId, "ADMIN")) {
+            throw new RuntimeException("无权修改该文档标题");
+        }
+        if (title == null) {
+            throw new RuntimeException("标题不能为空");
+        }
+
+        UpdateWrapper<Document> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", documentId)
+                .set("title", title.trim())
+                .set("updated_at", LocalDateTime.now());
+        documentMapper.update(null, updateWrapper);
+
+        redisTemplate.delete(RedisKeyConstant.buildDocumentCacheKey(documentId));
+    }
+
+    @Override
+    @Transactional
+    public void restoreDocument(Long documentId, Long userId) {
+        // 恢复使用权限兜底：创建者/管理员可恢复
+        if (!permissionService.hasPermission(documentId, userId, "ADMIN")) {
+            throw new RuntimeException("无权恢复该文档");
+        }
+
+        UpdateWrapper<Document> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", documentId)
+                .set("is_deleted", 0)
+                .set("updated_at", LocalDateTime.now());
+        documentMapper.update(null, updateWrapper);
+
+        redisTemplate.delete(RedisKeyConstant.buildDocumentCacheKey(documentId));
+    }
+
+    @Override
+    public List<Document> getDeletedDocuments(Long userId) {
+        // 回收站：当前用户创建的已删除文档
+        // 注意：这里必须走自定义 SQL，避免 MyBatis-Plus 自动注入 is_deleted=0 逻辑删除过滤条件
+        return documentMapper.selectDeletedDocumentsByCreatorId(userId);
+    }
+
+    @Override
+    @Transactional
+    public void forceDeleteDocument(Long documentId, Long userId) {
+        // 仅允许管理员/创建者执行彻底删除
+        if (!permissionService.hasPermission(documentId, userId, "ADMIN")) {
+            throw new RuntimeException("无权彻底删除该文档");
+        }
+
+        // 清理关联数据：权限、操作历史、版本快照、评论
+        // 说明：document 表使用自定义 SQL 做物理删除，避免逻辑删除过滤影响
+        documentMapper.forceDeleteById(documentId);
+
+        // permission/comment/operation/version 等表通常不参与 document 的逻辑删除，因此可直接 delete
+        permissionService.remove(
+                new QueryWrapper<DocumentPermission>().eq("document_id", documentId)
+        );
+        documentOperationMapper.delete(
+                new QueryWrapper<org.zsy.bysj.model.DocumentOperation>().eq("document_id", documentId)
+        );
+        documentVersionMapper.delete(
+                new QueryWrapper<org.zsy.bysj.model.DocumentVersion>().eq("document_id", documentId)
+        );
+        commentMapper.delete(
+                new QueryWrapper<org.zsy.bysj.model.Comment>().eq("document_id", documentId)
+        );
+
+        // 清理缓存
         redisTemplate.delete(RedisKeyConstant.buildDocumentCacheKey(documentId));
     }
 

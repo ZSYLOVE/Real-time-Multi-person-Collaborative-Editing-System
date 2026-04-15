@@ -180,5 +180,100 @@ public class DocumentController {
             return ResponseEntity.badRequest().body(Result.error(e.getMessage()));
         }
     }
+
+    /**
+     * 修改文档标题（仅管理员）
+     */
+    @RequirePermission("ADMIN")
+    @PutMapping("/{id}/title")
+    public ResponseEntity<Result<Void>> updateDocumentTitle(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
+        try {
+            Long userId = RequestUtil.getUserId(httpRequest);
+            if (userId == null) {
+                return ResponseEntity.badRequest().body(Result.error("未认证"));
+            }
+            Object titleObj = request.get("title");
+            if (titleObj == null) {
+                return ResponseEntity.badRequest().body(Result.error("标题不能为空"));
+            }
+            String title = titleObj.toString();
+            documentService.updateDocumentTitle(id, title, userId);
+
+            // 同步标题给所有在线用户（共享用户也能实时看到）
+            org.zsy.bysj.dto.WebSocketMessage titleMessage = new org.zsy.bysj.dto.WebSocketMessage();
+            titleMessage.setType("DOCUMENT_TITLE_UPDATED");
+            titleMessage.setDocumentId(id);
+            titleMessage.setUserId(userId);
+            titleMessage.setTimestamp(System.currentTimeMillis());
+            Map<String, Object> titleData = new HashMap<>();
+            titleData.put("title", title);
+            titleMessage.setData(titleData);
+            collaborationService.broadcastToDocument(id, titleMessage);
+
+            return ResponseEntity.ok(Result.success("文档标题更新成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Result.error(e.getMessage()));
+        }
+    }
+
+    /**
+     * 恢复已删除文档（逻辑删除可恢复）
+     */
+    @RequirePermission("ADMIN")
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<Result<Void>> restoreDocument(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        try {
+            Long userId = RequestUtil.getUserId(httpRequest);
+            if (userId == null) {
+                return ResponseEntity.badRequest().body(Result.error("未认证"));
+            }
+            documentService.restoreDocument(id, userId);
+            return ResponseEntity.ok(Result.success("文档恢复成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Result.error(e.getMessage()));
+        }
+    }
+
+    /**
+     * 彻底删除文档（不可恢复）
+     */
+    @RequirePermission("ADMIN")
+    @DeleteMapping("/{id}/force")
+    public ResponseEntity<Result<Void>> forceDeleteDocument(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        try {
+            Long userId = RequestUtil.getUserId(httpRequest);
+            if (userId == null) {
+                return ResponseEntity.badRequest().body(Result.error("未认证"));
+            }
+            documentService.forceDeleteDocument(id, userId);
+            return ResponseEntity.ok(Result.success("文档彻底删除成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Result.error(e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取当前用户的已删除文档（回收站）
+     */
+    @GetMapping("/deleted")
+    public ResponseEntity<Result<List<Document>>> getDeletedDocuments(HttpServletRequest httpRequest) {
+        try {
+            Long userId = RequestUtil.getUserId(httpRequest);
+            if (userId == null) {
+                return ResponseEntity.badRequest().body(Result.error("未认证"));
+            }
+            List<Document> documents = documentService.getDeletedDocuments(userId);
+            return ResponseEntity.ok(Result.success("已删除文档获取成功", documents));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Result.error(e.getMessage()));
+        }
+    }
 }
 

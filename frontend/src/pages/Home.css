@@ -4,6 +4,9 @@
   margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* 超大屏幕时增加最大宽度 */
@@ -16,24 +19,29 @@
 .home-welcome {
   margin-bottom: 32px;
   padding: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #eaf2ff;
   border-radius: 12px;
-  color: #fff;
+  color: #1f1f1f;
 }
 
 .dark-theme .home-welcome {
-  background: linear-gradient(135deg, #434343 0%, #2d2d2d 100%);
+  background-color: #2a2a2a;
 }
 
 .home-welcome .ant-typography {
-  color: #fff;
+  color: #1f1f1f;
   margin-bottom: 8px;
 }
 
 .home-welcome .ant-typography h2 {
-  color: #fff;
+  color: #1f1f1f;
   margin-bottom: 8px;
   font-size: 24px;
+}
+
+.dark-theme .home-welcome .ant-typography,
+.dark-theme .home-welcome .ant-typography h2 {
+  color: #fff;
 }
 
 .home-stats {
@@ -43,7 +51,7 @@
 .home-stats .ant-card {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .home-stats .ant-card:hover {
@@ -68,6 +76,30 @@
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/* ========== 轻量动效（克制，不用渐变） ========== */
+@keyframes homeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-welcome {
+  animation: homeIn 0.35s ease both;
+}
+
+.home-stats .ant-card {
+  animation: homeIn 0.35s ease both;
+}
+
+.home-recent-docs .recent-doc-item {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .home-actions .ant-card-body {
@@ -99,6 +131,27 @@
   padding: 16px;
 }
 
+/* 最近文档：兜底滚动，避免 List 把卡片撑开导致边界对不齐 */
+.home-recent-docs .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* 用视口高度动态兜底，避免卡片在小屏/滚动被裁剪时“顶穿”外层容器 */
+  max-height: min(420px, calc(100vh - 320px));
+}
+
+.home-recent-docs-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.dark-theme .home-recent-docs-list-scroll {
+  background: transparent;
+}
+
 .recent-doc-item {
   padding: 16px;
   border-radius: 6px;
@@ -109,6 +162,7 @@
 .recent-doc-item:hover {
   background-color: #fafafa;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
 }
 
 .dark-theme .recent-doc-item {
@@ -118,6 +172,7 @@
 .dark-theme .recent-doc-item:hover {
   background-color: #2a2a2a;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
 }
 
 .recent-doc-item:last-child {
@@ -358,5 +413,49 @@
     height: 32px;
     font-size: 13px;
   }
+}
+
+/* ========= 最近文档：取消局部滚动，交给页面整体滚动 ========= */
+.home-recent-docs {
+  display: block;
+}
+
+.home-recent-docs .ant-card-body {
+  /* 让卡片随内容自然增高，使用页面滚动 */
+  display: block !important;
+  flex: none !important;
+  min-height: auto !important;
+  padding: 16px !important;
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.home-recent-docs-list-scroll {
+  /* 取消内部滚动条 */
+  overflow: visible !important;
+  max-height: none !important;
+  padding-right: 0 !important;
+}
+
+.home-recent-docs-list-scroll .ant-list {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.home-recent-docs-list-scroll .ant-list-item {
+  /* 保持条目间的“分割线风格”，但不引入局部滚动布局问题 */
+  padding: 12px 16px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.dark-theme .home-recent-docs .ant-card-body {
+  background: transparent !important;
+}
+
+.dark-theme .home-recent-docs-list-scroll .ant-list-item {
+  border-bottom-color: #303030 !important;
 }
 

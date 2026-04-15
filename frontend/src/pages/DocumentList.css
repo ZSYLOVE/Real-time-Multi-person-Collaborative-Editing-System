@@ -4,6 +4,8 @@
   margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
 }
 
 /* 超大屏幕时增加最大宽度 */
@@ -97,21 +99,27 @@
   .search-action-space {
     flex-direction: row;
     align-items: center;
-    flex-wrap: nowrap; /* 不换行，确保在同一行 */
+    flex-wrap: nowrap;
+    /* 不换行，确保在同一行 */
     gap: 8px;
     width: 100% !important;
     box-sizing: border-box !important;
     padding: 0 !important;
     margin: 0 !important;
-    overflow: visible; /* 允许按钮显示 */
+    overflow: visible;
+    /* 允许按钮显示 */
   }
 
   .document-search-input {
-    flex: 1 1 0; /* 允许缩小，占据剩余空间 */
-    min-width: 0; /* 允许缩小到最小 */
-    max-width: 100%; /* 确保不超出容器 */
+    flex: 1 1 0;
+    /* 允许缩小，占据剩余空间 */
+    min-width: 0;
+    /* 允许缩小到最小 */
+    max-width: 100%;
+    /* 确保不超出容器 */
     box-sizing: border-box;
-    overflow: visible; /* 允许搜索按钮显示 */
+    overflow: visible;
+    /* 允许搜索按钮显示 */
   }
 
   /* 确保搜索框容器不会超出 */
@@ -121,7 +129,8 @@
     max-width: 100% !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    overflow: visible !important; /* 允许按钮显示 */
+    overflow: visible !important;
+    /* 允许按钮显示 */
   }
 
   /* 只对输入框部分设置overflow，不影响按钮 */
@@ -129,7 +138,8 @@
     max-width: 100% !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    overflow: hidden !important; /* 输入框内容不溢出 */
+    overflow: hidden !important;
+    /* 输入框内容不溢出 */
   }
 
   /* 确保搜索按钮可见且不被隐藏 */
@@ -152,7 +162,8 @@
   }
 
   .create-document-btn {
-    flex-shrink: 0; /* 按钮不缩小 */
+    flex-shrink: 0;
+    /* 按钮不缩小 */
     white-space: nowrap;
     min-width: auto;
     width: auto;
@@ -276,16 +287,20 @@
     gap: 8px;
     width: 100% !important;
     box-sizing: border-box !important;
-    flex-wrap: nowrap; /* 小屏幕也不换行 */
+    flex-wrap: nowrap;
+    /* 小屏幕也不换行 */
     padding: 0 !important;
     margin: 0 !important;
   }
 
   .document-search-input {
-    flex: 1 1 0; /* 允许缩小，占据剩余空间 */
-    min-width: 0; /* 允许缩小到最小 */
+    flex: 1 1 0;
+    /* 允许缩小，占据剩余空间 */
+    min-width: 0;
+    /* 允许缩小到最小 */
     box-sizing: border-box;
-    overflow: visible; /* 允许搜索按钮显示 */
+    overflow: visible;
+    /* 允许搜索按钮显示 */
   }
 
   .document-search-input .ant-input-wrapper,
@@ -375,20 +390,26 @@
   width: 100%;
   display: flex;
   align-items: center;
-  flex-wrap: nowrap; /* 桌面端也不换行 */
+  flex-wrap: nowrap;
+  /* 桌面端也不换行 */
   gap: 12px;
   box-sizing: border-box;
-  overflow: visible; /* 允许按钮显示 */
+  overflow: visible;
+  /* 允许按钮显示 */
 }
 
 .document-search-input {
-  flex: 1 1 0; /* 允许缩小，占据剩余空间 */
-  min-width: 0; /* 允许缩小到最小 */
-  max-width: 100%; /* 确保不超出容器 */
+  flex: 1 1 0;
+  /* 允许缩小，占据剩余空间 */
+  min-width: 0;
+  /* 允许缩小到最小 */
+  max-width: 100%;
+  /* 确保不超出容器 */
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  overflow: visible; /* 允许搜索按钮显示 */
+  overflow: visible;
+  /* 允许搜索按钮显示 */
 }
 
 /* 确保搜索框内部容器不会超出 */
@@ -398,7 +419,8 @@
   max-width: 100% !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  overflow: visible !important; /* 允许按钮显示 */
+  overflow: visible !important;
+  /* 允许按钮显示 */
 }
 
 /* 只对输入框部分设置overflow，不影响按钮 */
@@ -406,7 +428,8 @@
   max-width: 100% !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  overflow: hidden !important; /* 输入框内容不溢出 */
+  overflow: hidden !important;
+  /* 输入框内容不溢出 */
 }
 
 /* 确保搜索按钮可见且不被隐藏 */
@@ -712,3 +735,160 @@
   }
 }
 
+/* ========== 我的文档：列表区容器滚动 + 背景一致性（兜底） ========== */
+.document-list-scroll {
+  /* 让 List 在 Card body 内部滚动，避免撑破背景 */
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  width: 100%;
+  padding: 0;
+}
+
+.dark-theme .document-list-scroll {
+  background: #1f1f1f;
+}
+
+.document-list-container .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  /* 给 card body 一个上限，防止列表把 Card 背景撑破 */
+  max-height: calc(100vh - 260px);
+}
+
+/* 收紧列表项：用分割线替代大留白/阴影 */
+.document-list-scroll .ant-list-item {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.document-list-scroll .ant-list-item:last-child {
+  border-bottom: none !important;
+}
+
+.document-list-scroll .document-list-item {
+  padding: 12px 16px !important;
+  border-radius: 0 !important;
+}
+
+.document-list-scroll .ant-list-item:hover {
+  background: #fafafa !important;
+}
+
+.dark-theme .document-list-scroll .ant-list-item {
+  border-bottom-color: #303030 !important;
+}
+
+.dark-theme .document-list-scroll .ant-list-item:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* 回收站（可恢复）专用：列表项改为左右对齐布局，按钮不显得“飘” */
+.document-deleted-scroll .document-list-item {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* 让元信息区域自适应宽度，避免挤压按钮 */
+.document-deleted-scroll .ant-list-item-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 回收站按钮区域收紧，固定在右侧 */
+.document-deleted-scroll .document-buttons-right {
+  flex-shrink: 0;
+  margin-top: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* 统一回收站标题/元信息字体观感 */
+.document-deleted-scroll .ant-list-item-meta-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.document-deleted-scroll .doc-meta-info {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  gap: 8px;
+  flex-direction: row !important;
+}
+
+.document-deleted-scroll .doc-meta-info>span {
+  white-space: nowrap;
+}
+
+.document-deleted-scroll .ant-list-item-meta-description {
+  margin: 0 !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.dark-theme .document-deleted-scroll .doc-meta-info {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* 小屏幕下：允许整体换行，但禁止把描述压成极窄导致按字符断行 */
+@media (max-width: 768px) {
+  .document-deleted-scroll .document-list-item {
+    align-items: flex-start !important;
+  }
+
+  .document-deleted-scroll .ant-list-item-meta {
+    flex: 1 1 240px !important;
+    min-width: 0 !important;
+  }
+
+  .document-deleted-scroll .doc-meta-info,
+  .document-deleted-scroll .ant-list-item-meta-description {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+  }
+}
+
+/* ========== 轻量动效（自然、不过度“AI感”） ========== */
+@keyframes docListIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.document-list-scroll .document-list-item {
+  animation: docListIn 0.25s ease both;
+}
+
+.document-action-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.document-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+.dark-theme .document-action-btn:hover {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}

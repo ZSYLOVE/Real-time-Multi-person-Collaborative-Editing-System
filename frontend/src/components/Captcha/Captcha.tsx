@@ -9,9 +9,14 @@ interface CaptchaProps {
   onChange?: (value: string) => void;
   onRefresh?: () => void;
   onCaptchaIdChange?: (captchaId: string) => void; // 通知父组件验证码ID变化
+  /**
+   * 自动刷新验证码（毫秒）
+   * 不传则不自动刷新，由用户点击/交互触发
+   */
+  autoRefreshIntervalMs?: number;
 }
 
-const Captcha: React.FC<CaptchaProps> = ({ value, onChange, onRefresh, onCaptchaIdChange }) => {
+const Captcha: React.FC<CaptchaProps> = ({ value, onChange, onRefresh, onCaptchaIdChange, autoRefreshIntervalMs }) => {
   const [captchaId, setCaptchaId] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -61,6 +66,20 @@ const Captcha: React.FC<CaptchaProps> = ({ value, onChange, onRefresh, onCaptcha
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 自动刷新验证码（用于“验证码过期自动刷新”的体验）
+  useEffect(() => {
+    if (!autoRefreshIntervalMs || autoRefreshIntervalMs <= 0) return;
+
+    const timer = window.setInterval(() => {
+      // 加载验证码失败由 loadCaptcha 内部处理
+      loadCaptcha();
+    }, autoRefreshIntervalMs);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [autoRefreshIntervalMs]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value.toUpperCase();
