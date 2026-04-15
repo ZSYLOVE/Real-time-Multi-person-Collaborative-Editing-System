@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.zsy.bysj.mapper.DocumentMapper">
+
+    <!-- 回收站：已删除文档（绕过 MyBatis-Plus 自动逻辑删除过滤） -->
+    <select id="selectDeletedDocumentsByCreatorId"
+            parameterType="long"
+            resultType="org.zsy.bysj.model.Document">
+        SELECT
+            id,
+            title,
+            content,
+            creator_id,
+            version,
+            is_deleted,
+            created_at,
+            updated_at
+        FROM document
+        WHERE creator_id = #{userId}
+          AND is_deleted = 1
+        ORDER BY updated_at DESC
+    </select>
+
+    <!-- 物理删除文档（不可恢复） -->
+    <delete id="forceDeleteById" parameterType="long">
+        DELETE FROM document
+        WHERE id = #{documentId}
+    </delete>
+</mapper>
+
