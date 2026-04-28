@@ -14,6 +14,15 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [captchaValue, setCaptchaValue] = useState('');
   const [captchaId, setCaptchaId] = useState<string>('');
+  const [captchaRefreshNonce, setCaptchaRefreshNonce] = useState(0);
+
+  const isCaptchaExpiredError = (msg: string) => {
+    return (
+      !!msg &&
+      msg.includes('验证码') &&
+      (msg.includes('过期') || msg.includes('已过期'))
+    );
+  };
 
   // 如果已登录，跳转到文档列表
   useEffect(() => {
@@ -200,13 +209,27 @@ const Login: React.FC = () => {
         }
       } else {
         message.error(result.message || '登录失败');
-        setCaptchaValue(''); // 登录失败也清空验证码
+        if (isCaptchaExpiredError(result.message || '')) {
+          // 验证码过期：清空输入并强制刷新验证码
+          setCaptchaValue('');
+          setCaptchaId('');
+          setCaptchaRefreshNonce((v) => v + 1);
+        } else {
+          setCaptchaValue(''); // 登录失败也清空验证码
+        }
       }
     } catch (error: any) {
       console.error('登录错误:', error);
       const errorMessage = error.response?.data?.message || error.message || '登录失败，请检查网络连接和后端服务';
       message.error(errorMessage);
-      setCaptchaValue(''); // 登录错误也清空验证码
+      if (isCaptchaExpiredError(errorMessage)) {
+        // 验证码过期：自动刷新验证码
+        setCaptchaValue('');
+        setCaptchaId('');
+        setCaptchaRefreshNonce((v) => v + 1);
+      } else {
+        setCaptchaValue(''); // 登录错误也清空验证码
+      }
     } finally {
       setLoading(false);
     }
@@ -264,6 +287,7 @@ const Login: React.FC = () => {
             rules={[{ required: true, message: '请输入验证码' }]}
           >
             <Captcha
+              key={captchaRefreshNonce}
               value={captchaValue}
               onChange={(value) => setCaptchaValue(value)}
               onCaptchaIdChange={(id) => {

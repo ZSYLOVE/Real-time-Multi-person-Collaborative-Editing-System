@@ -11,6 +11,15 @@ const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [captchaValue, setCaptchaValue] = useState('');
   const [captchaId, setCaptchaId] = useState<string>('');
+  const [captchaRefreshNonce, setCaptchaRefreshNonce] = useState(0);
+
+  const isCaptchaExpiredError = (msg: string) => {
+    return (
+      !!msg &&
+      msg.includes('验证码') &&
+      (msg.includes('过期') || msg.includes('已过期'))
+    );
+  };
 
   const onFinish = async (values: {
     username: string;
@@ -36,12 +45,28 @@ const Register: React.FC = () => {
         setCaptchaValue(''); // 清空验证码
         navigate('/login');
       } else {
-        message.error(result.message || '注册失败');
-        setCaptchaValue(''); // 注册失败也清空验证码
+        const msg = result.message || '注册失败';
+        message.error(msg);
+        if (isCaptchaExpiredError(msg)) {
+          // 验证码过期：清空输入并强制刷新验证码
+          setCaptchaValue('');
+          setCaptchaId('');
+          setCaptchaRefreshNonce((v) => v + 1);
+        } else {
+          setCaptchaValue(''); // 注册失败也清空验证码
+        }
       }
     } catch (error: any) {
-      message.error(error.response?.data?.message || '注册失败，请检查网络连接');
-      setCaptchaValue(''); // 注册错误也清空验证码
+      const errorMessage = error.response?.data?.message || '注册失败，请检查网络连接';
+      message.error(errorMessage);
+      if (isCaptchaExpiredError(errorMessage)) {
+        // 验证码过期：自动刷新验证码
+        setCaptchaValue('');
+        setCaptchaId('');
+        setCaptchaRefreshNonce((v) => v + 1);
+      } else {
+        setCaptchaValue(''); // 注册错误也清空验证码
+      }
     } finally {
       setLoading(false);
     }
@@ -110,6 +135,7 @@ const Register: React.FC = () => {
             rules={[{ required: true, message: '请输入验证码' }]}
           >
             <Captcha
+              key={captchaRefreshNonce}
               value={captchaValue}
               onChange={(value) => setCaptchaValue(value)}
               onCaptchaIdChange={(id) => {

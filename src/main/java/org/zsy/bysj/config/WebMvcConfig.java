@@ -176,6 +176,7 @@ public class WebMvcConfig implements WebMvcConfigurer, ApplicationListener<Conte
                 .excludePathPatterns(
                         "/api/user/register",  // 排除注册接口
                         "/api/user/login",     // 排除登录接口
+                        "/api/user/logout",    // 退出登录：允许 token 已过期时也能释放登录锁
                         "/api/export/**"       // 排除导出接口
                 )
                 .order(1);  // 设置优先级，数字越小优先级越高

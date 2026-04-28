@@ -10,14 +10,15 @@ import useAuthStore from '@/stores/authStore';
 export async function signOut(options?: { redirectTo?: string }) {
   const redirectTo = options?.redirectTo ?? '/login';
 
+  // 退出登录时仍然尽量保留 userId，用于兜底释放后端登录锁
+  const { user } = useAuthStore.getState();
+  const userId = user?.id ?? null;
+
   try {
-    // 只有在本地仍有 token 时才尝试通知后端
-    const token = sessionStorage.getItem('token');
-    if (token) {
-      await apiService.logout();
-    }
+    // token 可能已过期导致 /logout 走不了（或后端拦截），所以同时把 userId 传给后端作为兜底
+    await apiService.logout(userId);
   } catch (e) {
-    // 后端失败不阻塞前端退出；但可能导致账号锁未释放，只能等TTL过期
+    // 后端失败不阻塞前端退出；但如果仍能释放锁，用户不会再被“已在线”拦截
     console.warn('signOut: 调用后端 logout 失败（可能导致账号仍处于在线状态）:', e);
   } finally {
     const { logout } = useAuthStore.getState();

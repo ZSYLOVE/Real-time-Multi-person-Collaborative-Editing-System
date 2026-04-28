@@ -162,8 +162,10 @@ class ApiService {
   /**
    * 退出登录（后端释放“登录占用锁”）
    */
-  async logout(): Promise<ApiResult<void>> {
-    return this.api.post('/user/logout');
+  async logout(userId?: number | null): Promise<ApiResult<void>> {
+    // 允许前端在 token 已过期/失效时仍能释放锁（由后端根据 userId 释放）
+    // 若 userId 未提供，则由后端尝试从认证信息获取。
+    return this.api.post('/user/logout', userId ? { userId } : {});
   }
 
   /**

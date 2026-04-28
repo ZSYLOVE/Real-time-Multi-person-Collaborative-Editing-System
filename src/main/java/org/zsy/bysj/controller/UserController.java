@@ -101,9 +101,25 @@ public class UserController {
      * 退出登录（释放“登录占用锁”）
      */
     @PostMapping("/logout")
-    public ResponseEntity<Result<Void>> logout(HttpServletRequest request) {
+    public ResponseEntity<Result<Void>> logout(
+            HttpServletRequest request,
+            @RequestBody(required = false) Map<String, Object> body) {
         try {
             Long userId = RequestUtil.getUserId(request);
+            // token 可能已过期导致无法通过认证拦截器，但前端仍可传 userId 作为兜底释放锁
+            if (userId == null && body != null && body.get("userId") != null) {
+                Object userIdObj = body.get("userId");
+                if (userIdObj instanceof Number) {
+                    userId = ((Number) userIdObj).longValue();
+                } else if (userIdObj instanceof String) {
+                    try {
+                        userId = Long.parseLong((String) userIdObj);
+                    } catch (Exception ignored) {
+                        // ignore
+                    }
+                }
+            }
+
             if (userId == null) {
                 return ResponseEntity.badRequest().body(Result.error("未认证"));
             }
