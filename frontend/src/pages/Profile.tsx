@@ -70,9 +70,10 @@ const Profile: React.FC = () => {
       
       // 调用后端API更新用户信息
       try {
+        const trimmedEmail = typeof values.email === 'string' ? values.email.trim() : values.email;
         const result = await apiService.updateUserInfo({
           nickname: values.nickname,
-          email: values.email,
+          email: trimmedEmail,
           avatar: values.avatar,
         });
         
@@ -85,16 +86,25 @@ const Profile: React.FC = () => {
           message.error(result.message || '保存失败');
         }
       } catch (apiError: any) {
-        // 如果后端接口不存在，只更新本地状态
-        console.warn('后端接口可能不存在，只更新本地状态:', apiError);
-        const updatedUser = {
-          ...user!,
-          ...values,
-        };
-        setUserInfo(updatedUser);
-        setUser(updatedUser);
-        setEditing(false);
-        message.success('保存成功（仅本地更新）');
+        // 只有在明确“接口不存在/未实现”的情况下才允许本地兜底
+        const status = apiError?.response?.status;
+        const backendMsg = apiError?.response?.data?.message;
+
+        if (status === 404 || status === 501) {
+          console.warn('后端接口不存在/未实现，启用本地兜底：', apiError);
+          const updatedUser = {
+            ...user!,
+            ...values,
+          };
+          setUserInfo(updatedUser);
+          setUser(updatedUser);
+          setEditing(false);
+          message.success('保存成功（仅本地更新，后端未实现）');
+          return;
+        }
+
+        // 其他情况：直接展示后端错误（否则会误以为已写入数据库）
+        message.error(backendMsg || apiError?.message || '保存失败');
       }
     } catch (error) {
       console.error('保存失败:', error);

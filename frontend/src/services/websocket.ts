@@ -18,6 +18,8 @@ class WebSocketService {
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
   private isConnected: boolean = false;
   private subscriptions: Map<number, any> = new Map(); // 存储订阅引用
+  private chatSubscriptions: Map<number, any> = new Map(); // 存储聊天订阅引用（roomId -> subscription）
+  private userChatSubscription: any = null; // 订阅当前用户的聊天推送
 
   /**
    * 连接WebSocket
@@ -87,6 +89,24 @@ class WebSocketService {
       }
     });
     this.subscriptions.clear();
+
+    this.chatSubscriptions.forEach((subscription) => {
+      try {
+        subscription.unsubscribe();
+      } catch (error) {
+        // 忽略取消订阅时的错误
+      }
+    });
+    this.chatSubscriptions.clear();
+
+    if (this.userChatSubscription) {
+      try {
+        this.userChatSubscription.unsubscribe();
+      } catch (error) {
+        // ignore
+      }
+    }
+    this.userChatSubscription = null;
     
     if (this.client) {
       this.client.deactivate();
@@ -328,6 +348,114 @@ class WebSocketService {
    */
   getDocumentId(): number | null {
     return this.documentId;
+  }
+
+  /**
+   * 加入一对一聊天房间（订阅实时消息）
+   * 注意：这里复用 WebSocketMessage 的 documentId 字段，约定 documentId = roomId。
+   */
+  async joinChatRoom(roomId: number): Promise<void> {
+    if (!this.client) {
+      console.error('WebSocket客户端未初始化');
+      return;
+    }
+
+    // 等待STOMP连接完全建立
+    let retries = 0;
+    const maxRetries = 10;
+    while ((!this.isConnected || !this.client.connected) && retries < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries++;
+    }
+
+    if (!this.isConnected || !this.client.connected) {
+      console.error('WebSocket未连接或STOMP连接未建立');
+      return;
+    }
+
+    if (this.chatSubscriptions.has(roomId)) {
+      // 已订阅过，避免重复监听
+      return;
+    }
+
+    const destination = `/topic/chat/${roomId}`;
+    const subscription = this.client.subscribe(destination, (message: IMessage) => {
+      try {
+        const data: WebSocketMessage = JSON.parse(message.body);
+        this.handleMessage(data);
+      } catch (error) {
+        console.error('解析聊天WebSocket消息失败:', error, message.body);
+      }
+    });
+
+    this.chatSubscriptions.set(roomId, subscription);
+  }
+
+  /**
+   * 订阅当前用户的聊天推送（用于“未读消息 + 最近联系人”自动刷新）
+   * 注意：后端会向 /topic/chat/user/{userId} 推送新消息事件
+   */
+  async joinUserChat(): Promise<void> {
+    if (!this.client) {
+      console.error('WebSocket客户端未初始化');
+      return;
+    }
+    if (!this.userId) {
+      console.error('未获取到当前用户ID，无法订阅用户聊天');
+      return;
+    }
+
+    if (this.userChatSubscription) return;
+
+    let retries = 0;
+    const maxRetries = 10;
+    while ((!this.isConnected || !this.client.connected) && retries < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries++;
+    }
+    if (!this.isConnected || !this.client.connected) {
+      console.error('WebSocket未连接或STOMP连接未建立');
+      return;
+    }
+
+    const destination = `/topic/chat/user/${this.userId}`;
+    this.userChatSubscription = this.client.subscribe(destination, (message: IMessage) => {
+      try {
+        const data: WebSocketMessage = JSON.parse(message.body);
+        this.handleMessage(data);
+      } catch (error) {
+        console.error('解析用户聊天WebSocket消息失败:', error, message.body);
+      }
+    });
+  }
+
+  /**
+   * 发送聊天消息（通过 websocket，后端落库并广播）
+   */
+  sendChatMessage(roomId: number, content: string): void {
+    if (!this.client || !this.isConnected || !this.client.connected) {
+      console.error('WebSocket未连接，无法发送聊天消息');
+      return;
+    }
+    if (!this.userId) {
+      console.error('未获取到当前用户ID，无法发送聊天消息');
+      return;
+    }
+    const trimmed = content.trim();
+    if (!trimmed) return;
+
+    const message = {
+      type: 'CHAT_MESSAGE',
+      documentId: roomId, // 复用字段：roomId
+      userId: this.userId, // 服务端会以token解析的userId为准，但保留字段便于调试
+      data: { content: trimmed },
+      timestamp: Date.now(),
+    };
+
+    this.client.publish({
+      destination: '/app/chat/send',
+      body: JSON.stringify(message),
+    });
   }
 }
 

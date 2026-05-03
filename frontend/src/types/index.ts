@@ -28,6 +28,7 @@ export type WebSocketMessageType =
   | 'CURSOR'
   | 'COMMENT'
   | 'PERMISSION'
+  | 'CHAT_MESSAGE'
   | 'JOIN'
   | 'LEAVE'
   | 'DOCUMENT_UPDATED'
@@ -140,5 +141,22 @@ export interface RegisterRequest {
 export interface CursorData {
   position: number;
   userId: number;
+}
+
+// 聊天房间（一对一）
+export interface ChatRoom {
+  id: number;
+  userAId: number;
+  userBId: number;
+  createdAt?: string;
+}
+
+// 聊天消息
+export interface ChatMessage {
+  id: number;
+  roomId: number;
+  senderId: number;
+  content: string;
+  createdAt?: string;
 }
 

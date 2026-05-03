@@ -17,6 +17,13 @@ public interface UserService extends IService<User> {
      * 用户登录
      */
     String login(String username, String password);
+
+    /**
+     * 通过用户ID登录（用于邮箱验证码登录等场景）
+     * <p>
+     * 会复用现有“登录占用锁”逻辑，确保同账号并发登录被限制。
+     */
+    String loginByUserId(Long userId);
     
     /**
      * 根据用户名获取用户

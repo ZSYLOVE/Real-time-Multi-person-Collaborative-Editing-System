@@ -76,6 +76,16 @@ public class RedisKeyConstant {
     public static final String USER_OFFLINE_KEY = "user_offline:";
 
     /**
+     * 私聊未读数key前缀
+     */
+    public static final String CHAT_UNREAD_KEY = "chat_unread:";
+
+    /**
+     * 邮箱验证码 key 前缀
+     */
+    public static final String EMAIL_CAPTCHA_KEY = "email_captcha:";
+
+    /**
      * 文档锁队列key前缀
      */
     public static final String DOCUMENT_LOCK_QUEUE_KEY = "document_lock_queue:";
@@ -106,6 +116,20 @@ public class RedisKeyConstant {
      */
     public static String buildUserOfflineKey(Long documentId, Long userId) {
         return USER_OFFLINE_KEY + documentId + ":" + userId;
+    }
+
+    /**
+     * 构建私聊未读数key
+     */
+    public static String buildChatUnreadKey(Long userId, Long roomId) {
+        return CHAT_UNREAD_KEY + userId + ":" + roomId;
+    }
+
+    /**
+     * 构建邮箱验证码 key（按邮箱小写归一）
+     */
+    public static String buildEmailCaptchaKey(String email) {
+        return EMAIL_CAPTCHA_KEY + (email == null ? "" : email.trim().toLowerCase());
     }
 
     /**

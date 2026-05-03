@@ -9,6 +9,7 @@ import DocumentList from './pages/DocumentList';
 import DocumentEditor from './pages/DocumentEditor';
 import Profile from './pages/Profile';
 import MainLayout from './components/Layout/MainLayout';
+import Chat from './pages/Chat';
 import useAuthStore from './stores/authStore';
 import useThemeStore from './stores/themeStore';
 import { websocketService } from './services/websocket';
@@ -248,6 +249,18 @@ function App() {
                 isAuthenticated ? (
                   <MainLayout>
                     <Profile />
+                  </MainLayout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                isAuthenticated ? (
+                  <MainLayout>
+                    <Chat />
                   </MainLayout>
                 ) : (
                   <Navigate to="/login" replace />

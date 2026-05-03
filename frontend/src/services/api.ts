@@ -12,7 +12,9 @@ import type {
   RegisterRequest,
   DocumentPermission,
   Comment,
-  DocumentVersion
+  DocumentVersion,
+  ChatRoom,
+  ChatMessage
 } from '@/types';
 
 class ApiService {
@@ -77,8 +79,9 @@ class ApiService {
           });
         }
         
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          // Token过期或无效
+        // 只有 401（未登录/Token 无效）才应触发退出并跳转登录页
+        // 403 通常是“业务权限不足”，不应当当作未登录处理（否则只读场景会被误跳登录）
+        if (error.response?.status === 401) {
           // 检查是否是登录相关的请求，如果是则不清除（可能是登录验证失败）
           const isAuthRequest = error.config?.url?.includes('/login') || 
                                error.config?.url?.includes('/register') ||
@@ -109,6 +112,13 @@ class ApiService {
             });
           }
           // 交由 signOut 统一处理清理和跳转
+        }
+        if (error.response?.status === 403) {
+          // 权限不足：不触发 signOut，交由页面按业务提示（如只读提示）
+          console.warn('API响应拦截器: 请求被拒绝（403），不触发退出登录', {
+            url: error.config?.url,
+            message: error.response?.data?.message || error.message,
+          });
         }
         return Promise.reject(error);
       }
@@ -180,6 +190,50 @@ class ApiService {
    */
   async searchUsers(keyword: string): Promise<ApiResult<User[]>> {
     return this.api.get('/user/search', { params: { keyword } });
+  }
+
+  /**
+   * 获取/创建与指定用户的私聊会话
+   */
+  async getChatRoom(withUserId: number): Promise<ApiResult<ChatRoom>> {
+    const result: any = await this.api.get('/chat/room', { params: { withUserId } });
+    return result;
+  }
+
+  /**
+   * 获取会话历史消息（离线补发）
+   */
+  async getChatMessages(
+    roomId: number,
+    options?: { since?: number; limit?: number }
+  ): Promise<ApiResult<ChatMessage[]>> {
+    const { since, limit } = options || {};
+    return this.api.get(`/chat/messages/${roomId}`, { params: { since, limit } });
+  }
+
+  /**
+   * 获取更早历史消息（用于向上翻页）
+   */
+  async getChatMessagesBefore(
+    roomId: number,
+    options?: { before?: number; limit?: number }
+  ): Promise<ApiResult<ChatMessage[]>> {
+    const { before, limit } = options || {};
+    return this.api.get(`/chat/messages/${roomId}/before`, { params: { before, limit } });
+  }
+
+  /**
+   * 获取“最近联系人/会话列表”（含未读数、最后一条消息）
+   */
+  async getChatRooms(): Promise<ApiResult<Array<any>>> {
+    return this.api.get('/chat/rooms');
+  }
+
+  /**
+   * 将会话标记为已读（清零未读数）
+   */
+  async markChatRoomRead(roomId: number): Promise<ApiResult<void>> {
+    return this.api.post(`/chat/rooms/${roomId}/read`);
   }
 
   /**

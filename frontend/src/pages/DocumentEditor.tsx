@@ -22,6 +22,7 @@ const DocumentEditor: React.FC = () => {
   const { user } = useAuthStore();
   const { currentDocument, setCurrentDocument, setLoading, loading, comments } = useDocumentStore();
   const [initialized, setInitialized] = useState(false);
+  const [readOnly, setReadOnly] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
   const sidebarSectionRef = useRef<HTMLDivElement>(null);
@@ -89,6 +90,28 @@ const DocumentEditor: React.FC = () => {
       
       const result = await apiService.getDocument(documentId);
       if (result.code === 200 && result.data) {
+        // 先拉取当前用户对该文档的权限，决定只读/编辑
+        try {
+          const permissionsResult = await apiService.getUserPermissions();
+          if (permissionsResult.code === 200 && permissionsResult.data) {
+            const currentPerm = permissionsResult.data.find((p: any) => p.documentId === documentId);
+            const permType = currentPerm?.permissionType;
+            const nextReadOnly = permType === 'WRITE' || permType === 'ADMIN' ? false : true;
+            setReadOnly(nextReadOnly);
+
+            if (nextReadOnly) {
+              message.info('当前为只读模式：你没有该文档的写权限。');
+            }
+          } else {
+            // 权限接口异常时保守处理：只读
+            setReadOnly(true);
+            message.warning('权限校验失败，进入只读模式。');
+          }
+        } catch (e) {
+          setReadOnly(true);
+          message.warning('权限校验失败，进入只读模式。');
+        }
+
         setCurrentDocument(result.data);
         // 延迟设置初始化状态，确保编辑器组件已经挂载
         setTimeout(() => {
@@ -205,7 +228,7 @@ const DocumentEditor: React.FC = () => {
                 <CollaborativeEditor
                   documentId={documentId}
                   userId={user.id}
-                  readOnly={false}
+                  readOnly={readOnly}
                 />
               </div>
               <div className="comment-wrapper" ref={commentWrapperRef}>

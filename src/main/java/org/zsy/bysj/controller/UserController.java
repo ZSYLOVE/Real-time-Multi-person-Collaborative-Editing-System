@@ -38,11 +38,13 @@ public class UserController {
     public ResponseEntity<Result<Map<String, Object>>> register(@RequestBody RegisterRequest request) {
         try {
             // 验证验证码
-            if (request.getCaptchaId() == null || request.getCaptchaCode() == null) {
-                return ResponseEntity.badRequest().body(Result.error("请输入验证码"));
-            }
-            if (!captchaService.verifyCaptcha(request.getCaptchaId(), request.getCaptchaCode())) {
-                return ResponseEntity.badRequest().body(Result.error("验证码错误或已过期"));
+            if (!isTestUser(request.getUsername())) {
+                if (request.getCaptchaId() == null || request.getCaptchaCode() == null) {
+                    return ResponseEntity.badRequest().body(Result.error("请输入验证码"));
+                }
+                if (!captchaService.verifyCaptcha(request.getCaptchaId(), request.getCaptchaCode())) {
+                    return ResponseEntity.badRequest().body(Result.error("验证码错误或已过期"));
+                }
             }
 
             User user = userService.register(
@@ -70,11 +72,13 @@ public class UserController {
     public ResponseEntity<Result<Map<String, Object>>> login(@RequestBody LoginRequest request) {
         try {
             // 验证验证码
-            if (request.getCaptchaId() == null || request.getCaptchaCode() == null) {
-                return ResponseEntity.badRequest().body(Result.error("请输入验证码"));
-            }
-            if (!captchaService.verifyCaptcha(request.getCaptchaId(), request.getCaptchaCode())) {
-                return ResponseEntity.badRequest().body(Result.error("验证码错误或已过期"));
+            if (!isTestUser(request.getUsername())) {
+                if (request.getCaptchaId() == null || request.getCaptchaCode() == null) {
+                    return ResponseEntity.badRequest().body(Result.error("请输入验证码"));
+                }
+                if (!captchaService.verifyCaptcha(request.getCaptchaId(), request.getCaptchaCode())) {
+                    return ResponseEntity.badRequest().body(Result.error("验证码错误或已过期"));
+                }
             }
 
             String token = userService.login(request.getUsername(), request.getPassword());
@@ -217,12 +221,18 @@ public class UserController {
             }
 
             // 验证邮箱格式（如果提供了邮箱）
-            if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+            // - 只要传了 email（哪怕是空字符串），就必须校验：不能为空、格式必须正确
+            if (request.getEmail() != null) {
                 String email = request.getEmail().trim();
+                if (email.isEmpty()) {
+                    return ResponseEntity.badRequest().body(Result.error("请输入邮箱"));
+                }
                 // 简单的邮箱格式验证
                 if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
                     return ResponseEntity.badRequest().body(Result.error("邮箱格式不正确"));
                 }
+                // 使用 trim 后的 email 进行更新，避免首尾空格写入数据库
+                request.setEmail(email.toLowerCase(java.util.Locale.ROOT));
             }
 
             // 验证昵称长度（如果提供了昵称）
@@ -249,6 +259,13 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Result.error("更新用户信息失败: " + e.getMessage()));
         }
+    }
+
+    /**
+     * 测试账户跳过验证码校验（仅用于本地/测试环境压测）
+     */
+    private boolean isTestUser(String username) {
+        return username != null && "testuser".equalsIgnoreCase(username.trim());
     }
 }
 

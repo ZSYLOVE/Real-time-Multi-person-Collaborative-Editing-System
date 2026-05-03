@@ -31,6 +31,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional
     public User register(String username, String email, String password, String nickname) {
+        // 邮箱统一大小写/去空格，避免重复邮箱（大小写不同）绕过校验
+        String emailNorm = email != null ? email.trim().toLowerCase(java.util.Locale.ROOT) : null;
+
         // 检查用户名是否已存在
         QueryWrapper<User> wrapper = new QueryWrapper<>();
         wrapper.eq("username", username);
@@ -41,7 +44,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         // 检查邮箱是否已存在
         wrapper.clear();
-        wrapper.eq("email", email);
+        wrapper.eq("email", emailNorm);
         existingUser = this.getOne(wrapper);
         if (existingUser != null) {
             throw new RuntimeException("邮箱已被注册");
@@ -50,7 +53,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 创建新用户
         User user = new User();
         user.setUsername(username);
-        user.setEmail(email);
+        user.setEmail(emailNorm);
         user.setPassword(BCrypt.hashpw(password)); // 使用BCrypt加密密码
         user.setNickname(nickname != null ? nickname : username);
 
@@ -103,6 +106,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    public String loginByUserId(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
+
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        // ========== 单账号禁止同时登录（复用“登录占用锁”） ==========
+        String lockKey = RedisKeyConstant.buildUserLoginLockKey(userId);
+        Boolean locked = stringRedisTemplate.opsForValue().setIfAbsent(lockKey, "1", 60, TimeUnit.MINUTES);
+        if (locked == null || !locked) {
+            throw new RuntimeException("该账号已在线，请先退出");
+        }
+
+        // 生成JWT Token（使用用户真实 username）
+        return jwtUtil.generateToken(user.getId(), user.getUsername());
+    }
+
+    @Override
     public User getUserByUsername(String username) {
         QueryWrapper<User> wrapper = new QueryWrapper<>();
         wrapper.eq("username", username);
@@ -151,15 +176,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
 
         // 如果更新邮箱，检查邮箱是否已被其他用户使用
-        if (email != null && !email.trim().isEmpty() && !email.equals(user.getEmail())) {
+        if (email != null && !email.trim().isEmpty()) {
+            String emailNorm = email.trim().toLowerCase(java.util.Locale.ROOT);
+            String currentEmailNorm = user.getEmail() != null ? user.getEmail().trim().toLowerCase(java.util.Locale.ROOT) : null;
+
+            // email 相同则无需检查/更新
+            if (currentEmailNorm == null || !emailNorm.equals(currentEmailNorm)) {
             QueryWrapper<User> wrapper = new QueryWrapper<>();
-            wrapper.eq("email", email);
+            // 大小写不敏感：使用 LOWER(email) 兜底
+            wrapper.apply("LOWER(email) = {0}", emailNorm);
             wrapper.ne("id", userId); // 排除当前用户
             User existingUser = this.getOne(wrapper);
             if (existingUser != null) {
                 throw new RuntimeException("邮箱已被其他用户使用");
             }
-            user.setEmail(email);
+                user.setEmail(emailNorm);
+            }
         }
 
         // 更新昵称

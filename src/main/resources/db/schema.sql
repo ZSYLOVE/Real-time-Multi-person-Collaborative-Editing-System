@@ -101,3 +101,28 @@ CREATE TABLE IF NOT EXISTS `user_session` (
     INDEX `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户会话表';
 
+-- 一对一聊天会话表
+CREATE TABLE IF NOT EXISTS `chat_room` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+    `user_a_id` BIGINT NOT NULL COMMENT '参与用户A（较小userId）',
+    `user_b_id` BIGINT NOT NULL COMMENT '参与用户B（较大userId）',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY `uk_user_pair` (`user_a_id`, `user_b_id`),
+    INDEX `idx_user_a_id` (`user_a_id`),
+    INDEX `idx_user_b_id` (`user_b_id`),
+    FOREIGN KEY (`user_a_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_b_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='一对一聊天会话表';
+
+-- 聊天消息表（支持历史查询/离线补发）
+CREATE TABLE IF NOT EXISTS `chat_message` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+    `room_id` BIGINT NOT NULL COMMENT '会话ID',
+    `sender_id` BIGINT NOT NULL COMMENT '发送者ID',
+    `content` TEXT NOT NULL COMMENT '消息内容',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
+    INDEX `idx_room_created_at` (`room_id`, `created_at`),
+    FOREIGN KEY (`room_id`) REFERENCES `chat_room`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`sender_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='聊天消息表';
+
