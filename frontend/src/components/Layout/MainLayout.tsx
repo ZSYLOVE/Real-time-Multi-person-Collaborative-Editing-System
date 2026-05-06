@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Modal, Badge } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Modal } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   MenuFoldOutlined,
@@ -21,8 +21,6 @@ import useThemeStore from '@/stores/themeStore';
 import { signOut } from '@/utils/signOut';
 import type { MenuProps } from 'antd';
 import './MainLayout.css';
-import { apiService } from '@/services/api';
-import { websocketService } from '@/services/websocket';
 
 const { Header, Sider, Content } = Layout;
 
@@ -39,21 +37,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, getSessionDuration } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
 
-  const [chatUnreadTotal, setChatUnreadTotal] = useState(0);
-
-  const refreshChatUnread = async () => {
-    try {
-      const res = await apiService.getChatRooms();
-      if (res.code === 200 && Array.isArray(res.data)) {
-        const total = res.data.reduce((sum: number, x: any) => sum + Number(x.unreadCount ?? 0), 0);
-        setChatUnreadTotal(total);
-      } else {
-        setChatUnreadTotal(0);
-      }
-    } catch {
-      setChatUnreadTotal(0);
-    }
-  };
+  // 不展示未读消息提示（侧边栏小红点）
 
   // 检测移动端并设置初始状态
   React.useEffect(() => {
@@ -154,7 +138,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       label: (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           实时聊天
-          {chatUnreadTotal > 0 && <Badge dot />}
         </span>
       ),
     },
@@ -174,31 +157,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  // 左侧“实时聊天”红点：基于接口定时/事件刷新
-  React.useEffect(() => {
-    if (!user?.id) return;
-
-    refreshChatUnread();
-
-    // 连接用户级聊天推送（用于尽快触发刷新；未必每次都会有消息事件触发）
-    websocketService.joinUserChat().catch(() => { });
-
-    const interval = window.setInterval(() => {
-      refreshChatUnread();
-    }, 5000);
-
-    const handler = () => {
-      // 不在这里做重计算，直接拉取一次即可（低频、简单可靠）
-      refreshChatUnread();
-    };
-    websocketService.onMessage('CHAT_MESSAGE', handler as any);
-
-    return () => {
-      window.clearInterval(interval);
-      websocketService.offMessage('CHAT_MESSAGE', handler as any);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  // （未读消息提示展示已移除，无需定时拉取/监听 CHAT_MESSAGE）
 
   // 获取当前选中的菜单项
   const getSelectedKey = () => {

@@ -66,20 +66,20 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     toolbar: readOnly
       ? false
       : [
-          [{ header: [1, 2, 3, 4, 5, 6, false] }], // 扩展标题级别
-          [{ size: ['small', false, 'large', 'huge'] }], // 字体大小
-          [{ font: [] }], // 字体选择
-          ['bold', 'italic', 'underline', 'strike'], // 基本格式
-          [{ script: 'sub'}, { script: 'super' }], // 上标/下标
-          [{ color: [] }, { background: [] }], // 文字颜色和背景色
-          [{ align: [] }], // 对齐方式
-          [{ indent: '-1' }, { indent: '+1' }], // 缩进
-          [{ list: 'ordered' }, { list: 'bullet' }], // 列表
-          [{ direction: 'rtl' }], // 文字方向
-          ['blockquote', 'code-block'], // 引用和代码块
-          ['link', 'image', 'video'], // 媒体
-          ['clean'], // 清除格式
-        ],
+        [{ header: [1, 2, 3, 4, 5, 6, false] }], // 扩展标题级别
+        [{ size: ['small', false, 'large', 'huge'] }], // 字体大小
+        [{ font: [] }], // 字体选择
+        ['bold', 'italic', 'underline', 'strike'], // 基本格式
+        [{ script: 'sub' }, { script: 'super' }], // 上标/下标
+        [{ color: [] }, { background: [] }], // 文字颜色和背景色
+        [{ align: [] }], // 对齐方式
+        [{ indent: '-1' }, { indent: '+1' }], // 缩进
+        [{ list: 'ordered' }, { list: 'bullet' }], // 列表
+        [{ direction: 'rtl' }], // 文字方向
+        ['blockquote', 'code-block'], // 引用和代码块
+        ['link', 'image', 'video'], // 媒体
+        ['clean'], // 清除格式
+      ],
   };
 
   // 注册评论标记Blot和配置Quill格式
@@ -142,15 +142,15 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
   useEffect(() => {
     if (currentDocument?.content && quillRef.current) {
       const quill = quillRef.current.getEditor();
-      const contentString = typeof currentDocument.content === 'string' 
-        ? currentDocument.content 
+      const contentString = typeof currentDocument.content === 'string'
+        ? currentDocument.content
         : JSON.stringify(currentDocument.content);
-      
+
       // 如果内容已经初始化过且没有变化，跳过
       if (isInitialized && initializedContentRef.current === contentString) {
         return;
       }
-      
+
       // 如果编辑器已经初始化，检查是否是本地更新
       // 如果是本地更新，不需要重新设置内容（避免光标位置丢失）
       if (isInitialized && isLocalUpdateRef.current) {
@@ -162,7 +162,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         isLocalUpdateRef.current = false; // 重置标记
         return;
       }
-      
+
       // 如果编辑器已经初始化，比较当前编辑器内容和新的内容
       // 如果内容相同，说明是本地更新导致的，不需要重新设置内容（避免光标位置丢失）
       if (isInitialized) {
@@ -180,7 +180,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           return;
         }
       }
-      
+
       try {
         // 如果content是HTML字符串，使用clipboard来正确解析HTML（保留格式）
         if (typeof currentDocument.content === 'string' && currentDocument.content.trim()) {
@@ -190,13 +190,13 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           });
           // 先清空编辑器
           quill.setContents(new Delta(), 'silent');
-          
+
           // 方法1：使用clipboard.convert转换为Delta，然后setContents
           // 这是最可靠的方法，可以正确保留所有HTML格式（字体、颜色、样式等）
           try {
             const delta = quill.clipboard.convert(currentDocument.content);
             quill.setContents(delta, 'silent');
-            
+
             // 验证内容是否正确设置（检查是否有实际内容）
             const currentContent = quill.root.innerHTML;
             if (!currentContent || currentContent === '<p><br></p>') {
@@ -215,15 +215,15 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               quill.root.innerHTML = currentDocument.content;
             }
           }
-          
+
           // 记录已初始化的内容
           initializedContentRef.current = contentString;
           lastBroadcastedDeltaRef.current = quill.getContents();
         } else if (currentDocument.content) {
           // 如果是Delta格式，使用setContents（需要是Delta对象）
           try {
-            const deltaContent = typeof currentDocument.content === 'string' 
-              ? JSON.parse(currentDocument.content) 
+            const deltaContent = typeof currentDocument.content === 'string'
+              ? JSON.parse(currentDocument.content)
               : currentDocument.content;
             debugLog('执行 setContents（Delta 同步覆盖）', {
               beforeLen: quill.getText().length,
@@ -235,7 +235,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
             console.error('解析Delta内容失败:', e);
           }
         }
-        
+
         if (!isInitialized) {
           setIsInitialized(true);
         }
@@ -321,7 +321,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 为了避免“删除最后一个可见字符”时误把 newline 当成要删的字符，这里统一限制到 maxIndex。
       const currentLength = quill.getLength();
       const maxIndex = Math.max(0, currentLength - 1); // trailing newline 的索引
-      
+
       // 根据操作类型应用操作
       switch (operation.type) {
         case 'INSERT': {
@@ -361,7 +361,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         default:
           console.warn('未知的操作类型:', operation.type);
       }
-      
+
       // 恢复自己的光标位置（根据操作转换）
       if (savedCursorIndex !== null) {
         const transformedCursor = transformCursorPosition(savedCursorIndex, operation);
@@ -370,7 +370,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           quill.setSelection(transformedCursor, 0, 'api');
         }, 0);
       }
-      
+
       const opTs = remoteTs ?? operation.timestamp ?? Date.now();
 
       // 更新store中的用户光标位置
@@ -380,7 +380,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         const prevTs = lastRemoteCursorTsRef.current.get(operationAuthorId) ?? 0;
         lastRemoteCursorTsRef.current.set(operationAuthorId, Math.max(prevTs, opTs));
       }
-      
+
       // 操作应用后，更新文档内容状态（不触发 onChange）
       const content = quill.root.innerHTML;
       updateDocumentContent(content);
@@ -425,10 +425,10 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           if (collaborativeEditor) {
             const editorRect = editorElement.getBoundingClientRect();
             const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
-            
+
             setCursorPositions((prev) => {
               const newMap = new Map(prev);
-              newMap.set(targetUserId, { 
+              newMap.set(targetUserId, {
                 top: editorRect.top - containerRect.top,
                 left: editorRect.left - containerRect.left
               });
@@ -437,9 +437,9 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           }
           return;
         }
-        
+
         const validPosition = Math.min(Math.max(0, position), docLength);
-        
+
         // 使用 getBounds 获取光标位置，length 为 0 表示光标位置
         // 注意：getBounds 返回的位置是相对于 .ql-editor 的，不是相对于 .ql-container
         const bounds = quill.getBounds(validPosition, 0);
@@ -450,32 +450,32 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
             // 获取 .ql-editor 相对于 .collaborative-editor 的位置
             const editorRect = editorElement.getBoundingClientRect();
             const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
-            
+
             // 计算相对于 .collaborative-editor 容器的位置
             // bounds.top 是相对于 .ql-editor 的位置
             // editorRect.top - containerRect.top 是 .ql-editor 相对于容器的偏移
             let absoluteTop = bounds.top + editorRect.top - containerRect.top;
             let absoluteLeft = bounds.left + editorRect.left - containerRect.left;
-            
+
             // 验证计算出的位置是否合理
             // 允许一定的负值（因为可能有滚动），但不要太大
             const containerHeight = containerRect.height;
             const containerWidth = containerRect.width;
-            
+
             // 检查位置是否在合理范围内（允许一些误差）
             // 如果位置不合理，可能是 Quill 还未完全渲染，重试
-            if (absoluteTop < -100 || absoluteTop > containerHeight + 100 || 
-                absoluteLeft < -100 || absoluteLeft > containerWidth + 100) {
+            if (absoluteTop < -100 || absoluteTop > containerHeight + 100 ||
+              absoluteLeft < -100 || absoluteLeft > containerWidth + 100) {
               if (retryCount < 3) {
                 setTimeout(() => {
                   updateCursorPixelPosition(targetUserId, position, retryCount + 1);
                 }, 200);
                 return;
               } else {
-                console.warn('计算出的光标位置无效，已重试3次:', { 
-                  absoluteTop, 
-                  absoluteLeft, 
-                  bounds, 
+                console.warn('计算出的光标位置无效，已重试3次:', {
+                  absoluteTop,
+                  absoluteLeft,
+                  bounds,
                   position,
                   containerHeight,
                   containerWidth,
@@ -485,11 +485,11 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
                 return;
               }
             }
-            
+
             // 位置合理，更新光标位置
             setCursorPositions((prev) => {
               const newMap = new Map(prev);
-              newMap.set(targetUserId, { 
+              newMap.set(targetUserId, {
                 top: absoluteTop,
                 left: absoluteLeft
               });
@@ -560,16 +560,16 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           console.error('无效的操作数据:', message.data);
           return;
         }
-        
+
         // 如果是自己的操作，跳过（虽然后端应该已经排除了）
         if (message.userId === userId) {
           console.log('跳过自己的操作:', operation);
           return;
         }
-        
+
         console.log('收到远程操作:', operation, '来自用户:', message.userId);
-          try {
-            applyRemoteOperation(operation, message.userId, message.timestamp);
+        try {
+          applyRemoteOperation(operation, message.userId, message.timestamp);
         } catch (error) {
           console.error('应用远程操作失败:', error);
         }
@@ -605,19 +605,19 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         if (shouldIgnore) {
           return;
         }
-        
+
         // 验证位置有效性
         if (position === undefined || position === null || position < 0) {
           console.warn('收到无效的光标位置:', position, '来自用户:', message.userId);
           return;
         }
-        
+
         // 更新store中的光标位置
         if (incomingTs > 0) {
           lastRemoteCursorTsRef.current.set(message.userId, incomingTs);
         }
         updateUserCursor(message.userId, position);
-        
+
         // 使用统一的更新函数更新光标像素位置
         // 使用 requestAnimationFrame 确保在 DOM 更新后计算位置
         requestAnimationFrame(() => {
@@ -642,12 +642,12 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               username: user.username || `用户${user.userId}`,
               nickname: user.nickname,
               avatar: user.avatar,
-              color: user.color || `#${Math.floor(Math.random()*16777215).toString(16)}`,
+              color: user.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`,
               cursorPosition: user.position || undefined,
             }));
             console.log('更新在线用户列表:', users);
             useDocumentStore.getState().setOnlineUsers(users);
-            
+
             // 更新光标位置（延迟执行，确保Quill完全初始化）
             // 使用多次延迟，确保DOM完全渲染
             setTimeout(() => {
@@ -677,7 +677,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         console.log('用户离开:', message.userId);
         // 从在线用户列表中移除
         useDocumentStore.getState().removeOnlineUser(message.userId);
-        
+
         // 重新获取在线用户列表以确保同步
         try {
           const result = await apiService.getOnlineUsers(documentId);
@@ -687,7 +687,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               username: user.username || `用户${user.userId}`,
               nickname: user.nickname,
               avatar: user.avatar,
-              color: user.color || `#${Math.floor(Math.random()*16777215).toString(16)}`,
+              color: user.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`,
               cursorPosition: user.position || undefined,
             }));
             useDocumentStore.getState().setOnlineUsers(users);
@@ -751,12 +751,12 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     const setupWebSocket = async () => {
       let retries = 0;
       const maxRetries = 10;
-      
+
       while (!websocketService.getConnected() && retries < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         retries++;
       }
-      
+
       if (!websocketService.getConnected()) {
         return;
       }
@@ -776,7 +776,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       } catch (error) {
         console.error('加入文档失败:', error);
       }
-      
+
       // 获取初始在线用户列表（延迟一点时间，确保后端已处理JOIN消息）
       const fetchOnlineUsers = async () => {
         try {
@@ -790,12 +790,12 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               username: user.username || `用户${user.userId}`,
               nickname: user.nickname,
               avatar: user.avatar,
-              color: user.color || `#${Math.floor(Math.random()*16777215).toString(16)}`,
+              color: user.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`,
               cursorPosition: user.position || undefined,
             }));
             console.log('设置在线用户列表:', users);
             useDocumentStore.getState().setOnlineUsers(users);
-            
+
             // 更新光标位置（延迟执行，确保Quill完全初始化）
             // 使用多次延迟，确保DOM完全渲染
             setTimeout(() => {
@@ -819,7 +819,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           console.error('获取在线用户列表失败:', error);
         }
       };
-      
+
       // 立即获取一次，然后延迟再获取一次（确保后端已处理）
       fetchOnlineUsers();
       setTimeout(fetchOnlineUsers, 1000);
@@ -835,7 +835,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         clearTimeout(cursorDebounceTimerRef.current);
         cursorDebounceTimerRef.current = null;
       }
-      
+
       websocketService.offMessage('OPERATION', handleRemoteOperation);
       websocketService.offMessage('CURSOR', handleCursorMove);
       websocketService.offMessage('JOIN', handleUserJoin);
@@ -856,14 +856,14 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       // 获取 .ql-editor 元素（实际的内容区域）
       const editorElement = quill.root;
       if (!editorElement) return;
-      
+
       // 获取 .collaborative-editor 容器（光标指示器的父容器）
       const collaborativeEditor = editorElement.closest('.collaborative-editor');
       if (!collaborativeEditor) return;
-      
+
       const editorRect = editorElement.getBoundingClientRect();
       const containerRect = (collaborativeEditor as HTMLElement).getBoundingClientRect();
-      
+
       // 更新用户光标位置
       onlineUsers.forEach((user) => {
         if (user.userId !== userId && user.cursorPosition !== undefined && user.cursorPosition !== null) {
@@ -873,7 +873,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
               setCursorPositions((prev) => {
                 const newMap = new Map(prev);
                 // 计算相对于 .collaborative-editor 的位置
-                newMap.set(user.userId, { 
+                newMap.set(user.userId, {
                   top: bounds.top + editorRect.top - containerRect.top,
                   left: bounds.left + editorRect.left - containerRect.left
                 });
@@ -894,7 +894,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
             if (bounds) {
               setCommentMarkers((prev) => {
                 const newMap = new Map(prev);
-                newMap.set(comment.id, { 
+                newMap.set(comment.id, {
                   top: bounds.top + editorRect.top - containerRect.top,
                   left: bounds.left + editorRect.left - containerRect.left
                 });
@@ -913,7 +913,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
 
     // 监听内容变化和滚动
     const interval = setInterval(updatePositions, 100);
-    
+
     // 监听滚动事件
     const scrollHandler = () => updatePositions();
     const scrollContainer = quill.root.parentElement?.parentElement;
@@ -1185,7 +1185,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
       if (cursorDebounceTimerRef.current) {
         clearTimeout(cursorDebounceTimerRef.current);
       }
-      
+
       // 只有在初始化完成且 WebSocket 已连接时才发送光标位置
       if (websocketService.getConnected()) {
         // 使用防抖，避免频繁发送光标位置（100ms内只发送一次）
@@ -1221,6 +1221,144 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     }
   }, [currentDocument, documentId, saving, updateDocument]);
 
+  // 断线重连后自动触发一次“保存文档”，用后端的内容更新广播把客户端状态拉齐。
+  // 注意：只读用户不自动保存（后端 WRITE 权限不足会报错）。
+  const lastWsConnectedRef = useRef<boolean>(websocketService.getConnected());
+  const hadDisconnectedRef = useRef<boolean>(false);
+  const lastAutoSaveAtRef = useRef<number>(0);
+
+  // 用 ref 避免 effect 依赖变化导致“取消/重新注册监听”抖动
+  const readOnlyRef = useRef<boolean>(readOnly);
+  const savingRef = useRef<boolean>(saving);
+  const currentDocumentRef = useRef<typeof currentDocument>(currentDocument);
+  const documentIdRef = useRef<number>(documentId);
+
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+  }, [readOnly]);
+
+  useEffect(() => {
+    savingRef.current = saving;
+  }, [saving]);
+
+  useEffect(() => {
+    currentDocumentRef.current = currentDocument;
+  }, [currentDocument]);
+
+  useEffect(() => {
+    documentIdRef.current = documentId;
+  }, [documentId]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const cooldownMs = 10_000;
+
+    const performReconnectAutoSave = (source: string) => {
+      const now = Date.now();
+      if (readOnlyRef.current) {
+        console.log('[AutoSync] 早退原因: readOnly');
+        return; // 只读模式不自动保存
+      }
+      if (savingRef.current) {
+        console.log('[AutoSync] 早退原因: saving中');
+        return; // 避免与手动保存/其他保存并发
+      }
+      if (!currentDocumentRef.current || !quillRef.current) {
+        console.log('[AutoSync] 早退原因: 缺少currentDocument或quill');
+        return;
+      }
+      if (now - lastAutoSaveAtRef.current < cooldownMs) {
+        console.log('[AutoSync] 早退原因: cooldown');
+        return;
+      }
+
+      lastAutoSaveAtRef.current = now;
+      hadDisconnectedRef.current = false;
+      console.log('[AutoSync] 检测到重连，开始自动同步', { source });
+      message.info('检测到重连，开始自动同步...');
+
+      // 使用当前 Quill 内容做一次“强同步”
+      void (async () => {
+        try {
+          const quill = quillRef.current?.getEditor();
+          if (!quill) return;
+          const content = quill.root.innerHTML;
+
+          const result = await apiService.updateDocumentContent(documentIdRef.current, content);
+          if (result.code === 200 && result.data) {
+            updateDocument(result.data);
+            message.info(`已检测到重连，自动同步保存完成（版本 ${result.data.version}）`);
+          } else {
+            message.warning(result.message || '自动同步保存失败');
+          }
+        } catch (e: any) {
+          // 这里不做 message.error 轰炸，只打印并给警告
+          console.warn('自动同步保存失败:', e?.response?.data?.message || e?.message || e);
+          message.warning('自动同步保存失败');
+        }
+      })();
+    };
+
+    const handler = (nowConnected: boolean) => {
+      const wasConnected = lastWsConnectedRef.current;
+      lastWsConnectedRef.current = nowConnected;
+
+      if (wasConnected && !nowConnected) {
+        hadDisconnectedRef.current = true;
+      }
+
+      console.log('[AutoSync] handler触发:', {
+        nowConnected,
+        wasConnected,
+        hadDisconnected: hadDisconnectedRef.current,
+        readOnly: readOnlyRef.current,
+        saving: savingRef.current,
+        hasCurrentDocument: !!currentDocumentRef.current,
+        hasQuill: !!quillRef.current,
+        documentId: documentIdRef.current,
+      });
+
+      // 只在“之前确实经历过断开”且“现在已连接”时触发
+      if (wasConnected || !nowConnected || !hadDisconnectedRef.current) {
+        console.log('[AutoSync] 早退原因: 不是断->连');
+        return;
+      }
+
+      window.setTimeout(() => performReconnectAutoSave('websocket-reconnect'), 800);
+    };
+
+    const handleBrowserOffline = () => {
+      hadDisconnectedRef.current = true;
+      lastWsConnectedRef.current = false;
+      console.log('[AutoSync] 浏览器进入离线状态');
+    };
+
+    const handleBrowserOnline = () => {
+      console.log('[AutoSync] 浏览器恢复在线状态');
+      window.setTimeout(() => performReconnectAutoSave('browser-online'), 800);
+    };
+
+    console.log('[AutoSync] 注册 WebSocket 连接监听', {
+      documentId,
+      userId: userId,
+      readOnly,
+    });
+    websocketService.onConnectionChange(handler);
+    window.addEventListener('offline', handleBrowserOffline);
+    window.addEventListener('online', handleBrowserOnline);
+
+    return () => {
+      console.log('[AutoSync] 取消 WebSocket 连接监听', {
+        documentId,
+        userId: userId,
+      });
+      websocketService.offConnectionChange(handler);
+      window.removeEventListener('offline', handleBrowserOffline);
+      window.removeEventListener('online', handleBrowserOnline);
+    };
+  }, [isInitialized, documentId, userId, updateDocument]);
+
   return (
     <div className="collaborative-editor">
       {/* 保存按钮工具栏 */}
@@ -1252,7 +1390,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
         theme="snow"
         placeholder={readOnly ? '只读模式' : '开始编辑...'}
       />
-      
+
       {/* 在线用户光标指示器 */}
       <div className="cursor-indicators">
         {onlineUsers
@@ -1260,7 +1398,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           .map((user) => {
             const pixelPos = cursorPositions.get(user.userId);
             if (!pixelPos) return null;
-            
+
             return (
               <div
                 key={user.userId}
@@ -1286,7 +1424,7 @@ const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
           .map((comment) => {
             const pixelPos = commentMarkers.get(comment.id);
             if (!pixelPos) return null;
-            
+
             return (
               <div
                 key={comment.id}

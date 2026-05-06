@@ -20,6 +20,47 @@ class WebSocketService {
   private subscriptions: Map<number, any> = new Map(); // 存储订阅引用
   private chatSubscriptions: Map<number, any> = new Map(); // 存储聊天订阅引用（roomId -> subscription）
   private userChatSubscription: any = null; // 订阅当前用户的聊天推送
+  private connectionChangeHandlers: Set<(connected: boolean) => void> = new Set();
+  private connectionMonitorTimer: number | null = null;
+
+  private getActualConnected(): boolean {
+    // 以 stompjs client.connected 为准（比我们手动维护的 isConnected 更可靠）
+    return !!this.client?.connected;
+  }
+
+  private startConnectionMonitor() {
+    if (this.connectionMonitorTimer != null) return;
+
+    this.connectionMonitorTimer = window.setInterval(() => {
+      const actual = this.getActualConnected();
+      if (actual !== this.isConnected) {
+        this.isConnected = actual;
+        this.notifyConnectionChange(actual);
+      }
+    }, 200);
+  }
+
+  private notifyConnectionChange(connected: boolean) {
+    console.log('[WebSocketService] notifyConnectionChange:', connected);
+    this.connectionChangeHandlers.forEach((cb) => {
+      try {
+        cb(connected);
+      } catch (e) {
+        console.error('WebSocket connectionChange 回调执行失败:', e);
+      }
+    });
+  }
+
+  /**
+   * 监听 WebSocket 连接状态变化（仅客户端层面，不代表业务离线）
+   */
+  onConnectionChange(cb: (connected: boolean) => void) {
+    this.connectionChangeHandlers.add(cb);
+  }
+
+  offConnectionChange(cb: (connected: boolean) => void) {
+    this.connectionChangeHandlers.delete(cb);
+  }
 
   /**
    * 连接WebSocket
@@ -48,20 +89,24 @@ class WebSocketService {
         onConnect: () => {
           console.log('WebSocket连接成功');
           this.isConnected = true;
+          this.notifyConnectionChange(true);
           resolve();
         },
         onStompError: (frame: any) => {
           console.error('STOMP错误:', frame);
           this.isConnected = false;
+          this.notifyConnectionChange(false);
           reject(new Error(frame.headers?.['message'] || 'WebSocket连接失败'));
         },
         onWebSocketClose: () => {
           console.log('WebSocket连接关闭');
           this.isConnected = false;
+          this.notifyConnectionChange(false);
         },
         onDisconnect: () => {
           console.log('WebSocket断开连接');
           this.isConnected = false;
+          this.notifyConnectionChange(false);
         },
       });
 
@@ -73,6 +118,7 @@ class WebSocketService {
       });
 
       this.client.activate();
+      this.startConnectionMonitor();
     });
   }
 
@@ -113,6 +159,11 @@ class WebSocketService {
       this.client = null;
     }
     this.isConnected = false;
+    if (this.connectionMonitorTimer != null) {
+      window.clearInterval(this.connectionMonitorTimer);
+      this.connectionMonitorTimer = null;
+    }
+    this.notifyConnectionChange(false);
     this.documentId = null;
     this.messageHandlers.clear();
   }
